@@ -12,6 +12,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #include "common.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "ui.h"
 
 #define WIDTH 1280
 #define HEIGHT 800
@@ -33,14 +34,39 @@ typedef struct GameData {
 
     Camera2D camera;
     float timer;
+
+    Button buttonStart;
 } GameData;
 
 static GameData gameData;
 
+void gameStart() {
+    gameData.scene = GRID;
+}
+
+void initGameData() {
+    gameData.scene = TITLE;
+
+    initGrid(&gameData.grid1, 32, 32, "Grid 1");
+    initGrid(&gameData.grid2, 32, 32, "Grid 2");
+    gameData.gridScale = 24;
+    gameData.gridx = -gridDrawWidth(gameData.gridScale, gameData.grid1) / 2;
+    gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
+
+    gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
+    gameData.timer = 0.0f;
+
+    gameData.buttonStart = newButton((Rectangle){WIDTH / 2 - 200/2, HEIGHT / 2, 200, 100}, true, "Start", 32, gameStart);
+}
+
+void freeGameData() {
+    freeGrid(&gameData.grid1);
+    freeGrid(&gameData.grid2);
+}
+
 void updateSceneTitle() {
-    if (gameData.timer >= 5.0f) {
-        gameData.scene = GRID;
-        gameData.timer = 0.0f;
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        tryButtonPress(gameData.buttonStart);
     }
 }
 
@@ -118,7 +144,9 @@ void update() {
 
 void drawSceneTitle() {
     int textSize = MeasureText("Cellular Alpha", 64);
-    DrawText("Cellular Alpha", WIDTH / 2 - textSize/2, HEIGHT / 2 - 100, 64, WHITE); 
+    DrawText("Cellular Alpha", WIDTH / 2 - textSize / 2, HEIGHT / 2 - 100, 64, WHITE);
+
+    drawButton(gameData.buttonStart);
 }
 
 void drawSceneGrid() {
@@ -158,24 +186,6 @@ void draw() {
     DrawFPS(WIDTH - 80, HEIGHT - 30);
 
     EndDrawing();
-}
-
-void initGameData() {
-    gameData.scene = TITLE;
-
-    initGrid(&gameData.grid1, 32, 32, "Grid 1");
-    initGrid(&gameData.grid2, 32, 32, "Grid 2");
-    gameData.gridScale = 24;
-    gameData.gridx = -gridDrawWidth(gameData.gridScale, gameData.grid1) / 2;
-    gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
-
-    gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
-    gameData.timer = 0.0f;
-}
-
-void freeGameData() {
-    freeGrid(&gameData.grid1);
-    freeGrid(&gameData.grid2);
 }
 
 int main() {

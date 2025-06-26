@@ -16,7 +16,15 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #define WIDTH 1280
 #define HEIGHT 800
 
+typedef enum {
+    TITLE,
+    GRID,
+    TEST,
+} Scene;
+
 typedef struct GameData {
+    Scene scene;
+
     Grid grid1;
     Grid grid2;
     int gridx;
@@ -28,6 +36,13 @@ typedef struct GameData {
 } GameData;
 
 static GameData gameData;
+
+void updateSceneTitle() {
+    if (gameData.timer >= 5.0f) {
+        gameData.scene = GRID;
+        gameData.timer = 0.0f;
+    }
+}
 
 void cameraUpdate() {
     if (IsKeyDown(KEY_W)) {
@@ -57,12 +72,11 @@ void cameraUpdate() {
     }
 }
 
-void update() {
-    float dt = GetFrameTime();
-    gameData.timer += dt;
-
+void updateSceneGrid() {
     Vector2 mousePos = GetMousePosition();
     Vector2 worldPos = GetScreenToWorld2D(mousePos, gameData.camera);
+
+    cameraUpdate();
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         BoundingBox gridbbox = gridBoundingBox(gameData.gridx, gameData.gridy, gameData.gridScale, gameData.grid1);
@@ -72,8 +86,6 @@ void update() {
             gridCell->state = !gridCell->state;
         }
     }
-
-    cameraUpdate();
 
     if (gameData.timer > 0.5f) {
         updateGrids(&gameData.grid1, &gameData.grid2);
@@ -87,9 +99,29 @@ void update() {
     }
 }
 
-void draw() {
-    BeginDrawing();
+void update() {
+    float dt = GetFrameTime();
+    gameData.timer += dt;
 
+    switch (gameData.scene) {
+
+    case TITLE:
+        updateSceneTitle();
+        break;
+    case GRID:
+        updateSceneGrid();
+        break;
+    case TEST:
+        break;
+    }
+}
+
+void drawSceneTitle() {
+    int textSize = MeasureText("Cellular Alpha", 64);
+    DrawText("Cellular Alpha", WIDTH / 2 - textSize/2, HEIGHT / 2 - 100, 64, WHITE); 
+}
+
+void drawSceneGrid() {
     ClearBackground(BLACK);
 
     BeginMode2D(gameData.camera);
@@ -104,6 +136,24 @@ void draw() {
     DrawText(TextFormat("%f", gameData.camera.zoom), 10, 10, 20, WHITE);
     DrawText(TextFormat("Time: %f", gameData.timer), 10, 30, 20, BLUE);
     DrawText(TextFormat("Time: %s", gameData.grid1.label), 10, 50, 20, BLUE);
+}
+
+void draw() {
+    BeginDrawing();
+
+    ClearBackground(BLACK);
+
+    switch (gameData.scene) {
+
+    case TITLE:
+        drawSceneTitle();
+        break;
+    case GRID:
+        drawSceneGrid();
+        break;
+    case TEST:
+        break;
+    }
 
     DrawFPS(WIDTH - 80, HEIGHT - 30);
 
@@ -111,6 +161,8 @@ void draw() {
 }
 
 void initGameData() {
+    gameData.scene = TITLE;
+
     initGrid(&gameData.grid1, 32, 32, "Grid 1");
     initGrid(&gameData.grid2, 32, 32, "Grid 2");
     gameData.gridScale = 24;

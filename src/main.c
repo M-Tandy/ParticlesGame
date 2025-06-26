@@ -31,16 +31,16 @@ static GameData gameData;
 
 void cameraUpdate() {
     if (IsKeyDown(KEY_W)) {
-        gameData.camera.offset.y += 1;
+        gameData.camera.offset.y += 2 * gameData.camera.zoom;
     }
     if (IsKeyDown(KEY_S)) {
-        gameData.camera.offset.y -= 1;
+        gameData.camera.offset.y -= 2 * gameData.camera.zoom;
     }
     if (IsKeyDown(KEY_D)) {
-        gameData.camera.offset.x -= 1;
+        gameData.camera.offset.x -= 2 * gameData.camera.zoom;
     }
     if (IsKeyDown(KEY_A)) {
-        gameData.camera.offset.x += 1;
+        gameData.camera.offset.x += 2 * gameData.camera.zoom;
     }
 
     if (IsKeyPressed(KEY_O) && gameData.camera.zoom > 1.0f) {

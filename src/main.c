@@ -20,7 +20,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 typedef enum {
     TITLE,
     GRID,
-    TEST,
+    QUADTREE,
 } Scene;
 
 typedef struct GameData {
@@ -36,13 +36,14 @@ typedef struct GameData {
     float timer;
 
     Button buttonStart;
+    Button buttonQuadTree;
 } GameData;
 
 static GameData gameData;
 
-void gameStart() {
-    gameData.scene = GRID;
-}
+void toGrid() { gameData.scene = GRID; }
+
+void toQuadTree() { gameData.scene = QUADTREE; }
 
 void initGameData() {
     gameData.scene = TITLE;
@@ -56,7 +57,9 @@ void initGameData() {
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     gameData.timer = 0.0f;
 
-    gameData.buttonStart = newButton((Rectangle){WIDTH / 2 - 200/2, HEIGHT / 2, 200, 100}, true, "Start", 32, gameStart);
+    gameData.buttonStart = newButton((Rectangle){WIDTH / 2 - 200 / 2 - 200, HEIGHT / 2, 200, 100}, true, "Grid", 32, toGrid);
+    gameData.buttonQuadTree =
+        newButton((Rectangle){WIDTH / 2 - 200 / 2 + 200, HEIGHT / 2, 200, 100}, true, "QuadTree", 32, toQuadTree);
 }
 
 void freeGameData() {
@@ -67,6 +70,7 @@ void freeGameData() {
 void updateSceneTitle() {
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         tryButtonPress(gameData.buttonStart);
+        tryButtonPress(gameData.buttonQuadTree);
     }
 }
 
@@ -125,6 +129,8 @@ void updateSceneGrid() {
     }
 }
 
+void updateSceneQuadTree() { cameraUpdate(); }
+
 void update() {
     float dt = GetFrameTime();
     gameData.timer += dt;
@@ -137,7 +143,8 @@ void update() {
     case GRID:
         updateSceneGrid();
         break;
-    case TEST:
+    case QUADTREE:
+        updateSceneQuadTree();
         break;
     }
 }
@@ -147,6 +154,7 @@ void drawSceneTitle() {
     DrawText("Cellular Alpha", WIDTH / 2 - textSize / 2, HEIGHT / 2 - 100, 64, WHITE);
 
     drawButton(gameData.buttonStart);
+    drawButton(gameData.buttonQuadTree);
 }
 
 void drawSceneGrid() {
@@ -166,6 +174,14 @@ void drawSceneGrid() {
     DrawText(TextFormat("Time: %s", gameData.grid1.label), 10, 50, 20, BLUE);
 }
 
+void drawSceneQuadTree() {
+    ClearBackground(BLACK);
+
+    BeginMode2D(gameData.camera);
+
+    EndMode2D();
+}
+
 void draw() {
     BeginDrawing();
 
@@ -179,7 +195,8 @@ void draw() {
     case GRID:
         drawSceneGrid();
         break;
-    case TEST:
+    case QUADTREE:
+        drawSceneQuadTree();
         break;
     }
 

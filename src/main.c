@@ -8,10 +8,15 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 */
 
+#include <stdlib.h>
+
 #include "cell.h"
 #include "common.h"
+#include "draw.h"
+#include "quadtree.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "rlgl.h"
 #include "ui.h"
 
 #define WIDTH 1280
@@ -31,6 +36,8 @@ typedef struct GameData {
     int gridx;
     int gridy;
     int gridScale;
+
+    QuadTree quadtree;
 
     Camera2D camera;
     float timer;
@@ -54,10 +61,13 @@ void initGameData() {
     gameData.gridx = -gridDrawWidth(gameData.gridScale, gameData.grid1) / 2;
     gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
 
+    gameData.quadtree = newQuadTree();
+
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     gameData.timer = 0.0f;
 
-    gameData.buttonStart = newButton((Rectangle){WIDTH / 2 - 200 / 2 - 200, HEIGHT / 2, 200, 100}, true, "Grid", 32, toGrid);
+    gameData.buttonStart =
+        newButton((Rectangle){WIDTH / 2 - 200 / 2 - 200, HEIGHT / 2, 200, 100}, true, "Grid", 32, toGrid);
     gameData.buttonQuadTree =
         newButton((Rectangle){WIDTH / 2 - 200 / 2 + 200, HEIGHT / 2, 200, 100}, true, "QuadTree", 32, toQuadTree);
 }
@@ -65,6 +75,7 @@ void initGameData() {
 void freeGameData() {
     freeGrid(&gameData.grid1);
     freeGrid(&gameData.grid2);
+    freeQuadTree(&gameData.quadtree);
 }
 
 void updateSceneTitle() {
@@ -129,7 +140,17 @@ void updateSceneGrid() {
     }
 }
 
-void updateSceneQuadTree() { cameraUpdate(); }
+void updateSceneQuadTree() {
+    cameraUpdate();
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+        QuadTree *inTree = quadFromPosition(mousePos, &gameData.quadtree);
+        if (inTree != NULL && !isSubdivided(*inTree)) {
+            subdivideQuadTree(inTree);
+        }
+    }
+    DrawText(TextFormat("%f", gameData.quadtree.width), 100, 100, 32, WHITE);
+}
 
 void update() {
     float dt = GetFrameTime();
@@ -179,7 +200,21 @@ void drawSceneQuadTree() {
 
     BeginMode2D(gameData.camera);
 
+    drawQuadTree(gameData.quadtree, gameData.camera);
+
+    float gridCellSize = miniumumQuadSize(gameData.quadtree);
+    int cells = maxQuads(gameData.quadtree);
+    drawGridUnderlay(gameData.quadtree.center, cells, cells, gridCellSize);
+
+    Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+    QuadTree *inTree = quadFromPosition(mousePos, &gameData.quadtree);
+    if (inTree != NULL) {
+        drawCenteredSquareLines(inTree->center, inTree->width, BLUE);
+        drawCenteredSquare(inTree->center, 2, BLUE);
+    }
+
     EndMode2D();
+    DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);
 }
 
 void draw() {

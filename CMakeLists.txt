@@ -23,7 +23,7 @@ endif()
 
 # Our Project
 
-add_executable(${PROJECT_NAME} src/main.c src/cell.c src/ui.c)
+add_executable(${PROJECT_NAME} src/main.c src/cell.c src/ui.c src/quadtree.c src/draw.c)
 include_directories(src)
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)

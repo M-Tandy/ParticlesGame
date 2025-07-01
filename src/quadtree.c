@@ -1,7 +1,9 @@
 
+#include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "common.h"
 #include "draw.h"
 #include "quadtree.h"
 #include "raymath.h"
@@ -45,45 +47,7 @@ Quadrant pointToQuadrant(Vector2 point, Vector2 center) {
     return NE;
 }
 
-// -- QuadTree
-void initQuadTree(QuadTree *quadtree, int depth, Vector2 center, float width) {
-    quadtree->depth = depth;
-    quadtree->center = center;
-    quadtree->width = width;
-
-    quadtree->NW = NULL;
-    quadtree->NE = NULL;
-    quadtree->SW = NULL;
-    quadtree->SE = NULL;
-}
-
-QuadTree newQuadTree() {
-    QuadTree quadtree;
-    initQuadTree(&quadtree, 0, (Vector2){0.0f, 0.0f}, 5 * pow(2, QUADTREE_MAX_DEPTH));
-
-    return quadtree;
-}
-
-void freeQuadTree(QuadTree *quadtree) {
-    if (quadtree->NW != NULL) {
-        freeQuadTree(quadtree->NW);
-        free(quadtree->NW);
-    }
-    if (quadtree->NE != NULL) {
-        freeQuadTree(quadtree->NE);
-        free(quadtree->NE);
-    }
-    if (quadtree->SW != NULL) {
-        freeQuadTree(quadtree->SW);
-        free(quadtree->SW);
-    }
-    if (quadtree->SE != NULL) {
-        freeQuadTree(quadtree->SE);
-        free(quadtree->SE);
-    }
-}
-
-QuadTree *quadtreeFromQuadrant(Quadrant quadrant, const QuadTree *quadtree) {
+QuadTree *quadrantToQuadtree(Quadrant quadrant, const QuadTree *quadtree) {
     switch (quadrant) {
     case NW:
         return quadtree->NW;
@@ -100,23 +64,36 @@ QuadTree *quadtreeFromQuadrant(Quadrant quadrant, const QuadTree *quadtree) {
     }
 }
 
-void drawQuadTree(QuadTree quadtree, Camera2D camera) {
-    if (quadtree.NW != NULL) {
-        drawQuadTree(*quadtree.NW, camera);
-    }
-    if (quadtree.NE != NULL) {
-        drawQuadTree(*quadtree.NE, camera);
-    }
-    if (quadtree.SW != NULL) {
-        drawQuadTree(*quadtree.SW, camera);
-    }
-    if (quadtree.SE != NULL) {
-        drawQuadTree(*quadtree.SE, camera);
-    }
+// -- QuadTree
+void initQuadTree(QuadTree *quadtree, int depth) {
+    quadtree->depth = depth;
 
-    Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), camera);
-    drawCenteredSquare(quadtree.center, 2, WHITE);
-    drawCenteredSquareLines(quadtree.center, quadtree.width, WHITE);
+    quadtree->NW = NULL;
+    quadtree->NE = NULL;
+    quadtree->SW = NULL;
+    quadtree->SE = NULL;
+}
+
+QuadTree newQuadTree() {
+    QuadTree quadtree;
+    initQuadTree(&quadtree, 0);
+
+    return quadtree;
+}
+
+void freeQuadrant(Quadrant quadrant, QuadTree *quadtree) {
+    QuadTree *subtree = quadrantToQuadtree(quadrant, quadtree);
+    if (subtree != NULL) {
+        freeQuadTree(subtree);
+        free(subtree);
+    }
+}
+
+void freeQuadTree(QuadTree *quadtree) {
+    freeQuadrant(NW, quadtree);
+    freeQuadrant(NE, quadtree);
+    freeQuadrant(SW, quadtree);
+    freeQuadrant(SE, quadtree);
 }
 
 bool isSubdivided(QuadTree quadtree) { return quadtree.NE != NULL; }
@@ -133,44 +110,83 @@ bool subdivideQuadTree(QuadTree *quadtree) {
     quadtree->SE = malloc(sizeof(QuadTree));
 
     int depth = quadtree->depth;
-    int width = quadtree->width / 2.0f;
-
-    Vector2 upLeft = (Vector2){width / 2.0f, -width / 2.0f};
-    Vector2 downRight = (Vector2){width / 2.0f, width / 2.0f};
-
-    initQuadTree(quadtree->NW, depth + 1, Vector2Subtract(quadtree->center, downRight), width);
-    initQuadTree(quadtree->NE, depth + 1, Vector2Add(quadtree->center, upLeft), width);
-    initQuadTree(quadtree->SW, depth + 1, Vector2Subtract(quadtree->center, upLeft), width);
-    initQuadTree(quadtree->SE, depth + 1, Vector2Add(quadtree->center, downRight), width);
+    initQuadTree(quadtree->NW, depth + 1);
+    initQuadTree(quadtree->NE, depth + 1);
+    initQuadTree(quadtree->SW, depth + 1);
+    initQuadTree(quadtree->SE, depth + 1);
 
     return true;
 }
 
-bool inQuad(Vector2 point, QuadTree quadtree) {
-    float minx = quadtree.center.x - quadtree.width * 0.5f;
-    float maxx = quadtree.center.x + quadtree.width * 0.5f;
-    float miny = quadtree.center.y - quadtree.width * 0.5f;
-    float maxy = quadtree.center.y + quadtree.width * 0.5f;
+Vector2 centerOfQuadrant(Quadrant quadrant, Vector2 center, float width) {
+    switch (quadrant) {
+    case NW:
+        return (Vector2){center.x - width / 2.0f, center.y - width / 2.0f};
+    case NE:
+        return (Vector2){center.x + width / 2.0f, center.y - width / 2.0f};
+    case SW:
+        return (Vector2){center.x - width / 2.0f, center.y + width / 2.0f};
+    case SE:
+        return (Vector2){center.x + width / 2.0f, center.y + width / 2.0f};
+    }
+}
+
+// TODO: REMOVE
+bool inVisualQuadtree(Vector2 point, VisualQuadTree vquadtree) {
+    float minx = vquadtree.center.x - vquadtree.width * 0.5f;
+    float maxx = vquadtree.center.x + vquadtree.width * 0.5f;
+    float miny = vquadtree.center.y - vquadtree.width * 0.5f;
+    float maxy = vquadtree.center.y + vquadtree.width * 0.5f;
 
     return point.x >= minx && point.x <= maxx && point.y >= miny && point.y <= maxy;
 }
 
-QuadTree *quadFromPosition(Vector2 point, QuadTree *quadtree) {
-    if (quadtree->NE != NULL) {
-        Quadrant subquadrant = pointToQuadrant(point, quadtree->center);
-        QuadTree *subtree = quadtreeFromQuadrant(subquadrant, quadtree);
-
-        return quadFromPosition(point, subtree);
+QuadTree *quadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width) {
+    if (!IN_SQUARE(point, center, width)) {
+        return NULL;
     }
 
-    return quadtree;
+    QuadTree *subQuad = quadtree;
+    while (isSubdivided(*subQuad)) {
+        Quadrant quadrant = pointToQuadrant(point, center);
+        subQuad = quadrantToQuadtree(quadrant, subQuad);
+        center = centerOfQuadrant(quadrant, center, width/2.0f);
+        width /= 2;
+    }
+
+    return subQuad;
 }
 
-int maxQuads(QuadTree quadtree) {
-    return pow(2, QUADTREE_MAX_DEPTH);
+void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera) {
+    if (isSubdivided(quadtree)) {
+        drawQuadTree(*quadtree.NE, centerOfQuadrant(NE, center, width/2.0f), width/2.0f, camera);
+        drawQuadTree(*quadtree.NW, centerOfQuadrant(NW, center, width/2.0f), width/2.0f, camera);
+        drawQuadTree(*quadtree.SE, centerOfQuadrant(SE, center, width/2.0f), width/2.0f, camera);
+        drawQuadTree(*quadtree.SW, centerOfQuadrant(SW, center, width/2.0f), width/2.0f, camera);
+    }
+
+    Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), camera);
+    drawCenteredSquare(center, 2, WHITE);
+    drawCenteredSquareLines(center, width, WHITE);
 }
 
-float miniumumQuadSize(QuadTree quadtree) {
-    return quadtree.width / (maxQuads(quadtree));
+void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width) {
+    if (!IN_SQUARE(point, center, width)) {
+        return;
+    }
+
+    QuadTree *subQuad = quadtree;
+    while (isSubdivided(*subQuad)) {
+        Quadrant quadrant = pointToQuadrant(point, center);
+        subQuad = quadrantToQuadtree(quadrant, subQuad);
+        center = centerOfQuadrant(quadrant, center, width/2.0f);
+        width /= 2;
+    }
+
+    drawCenteredSquareLines(center, width, BLUE);
+    drawCenteredSquare(center, 2.0f, BLUE);
 }
 
+int maxQuads() { return pow(2, QUADTREE_MAX_DEPTH); }
+
+float miniumumQuadSize(float width) { return width / (maxQuads()); }

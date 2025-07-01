@@ -144,12 +144,11 @@ void updateSceneQuadTree() {
     cameraUpdate();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-        QuadTree *inTree = quadFromPosition(mousePos, &gameData.quadtree);
+        QuadTree *inTree = quadFromPosition(mousePos, &gameData.quadtree, (Vector2){0.0f, 0.0f}, 800.0f);
         if (inTree != NULL && !isSubdivided(*inTree)) {
             subdivideQuadTree(inTree);
         }
     }
-    DrawText(TextFormat("%f", gameData.quadtree.width), 100, 100, 32, WHITE);
 }
 
 void update() {
@@ -200,18 +199,14 @@ void drawSceneQuadTree() {
 
     BeginMode2D(gameData.camera);
 
-    drawQuadTree(gameData.quadtree, gameData.camera);
+    drawQuadTree(gameData.quadtree, (Vector2){0.0f, 0.0f}, 800.0f, gameData.camera);
 
-    float gridCellSize = miniumumQuadSize(gameData.quadtree);
-    int cells = maxQuads(gameData.quadtree);
-    drawGridUnderlay(gameData.quadtree.center, cells, cells, gridCellSize);
+    float gridCellSize = miniumumQuadSize(800.0f);
+    int cells = maxQuads();
+    // drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
 
     Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-    QuadTree *inTree = quadFromPosition(mousePos, &gameData.quadtree);
-    if (inTree != NULL) {
-        drawCenteredSquareLines(inTree->center, inTree->width, BLUE);
-        drawCenteredSquare(inTree->center, 2, BLUE);
-    }
+    drawQuadFromPosition(mousePos, &gameData.quadtree, (Vector2){0.0f, 0.0f}, 800.0f);
 
     EndMode2D();
     DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);

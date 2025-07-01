@@ -7,8 +7,6 @@
 
 typedef struct QuadTree {
     int depth;
-    Vector2 center;
-    float width;
 
     struct QuadTree *NW;
     struct QuadTree *NE;
@@ -16,13 +14,20 @@ typedef struct QuadTree {
     struct QuadTree *SE;
 } QuadTree;
 
+typedef struct VisualQuadTree {
+    QuadTree quadtree;
+    Vector2 center;
+    float width;
+} VisualQuadTree;
+
 QuadTree newQuadTree();
 bool isSubdivided(QuadTree quadtree);
 bool subdivideQuadTree(QuadTree *quadtree);
 void freeQuadTree(QuadTree *quadtree);
-void drawQuadTree(QuadTree quadtree, Camera2D camera);
-QuadTree *quadFromPosition(Vector2 point, QuadTree *quadtree);
-int maxQuads(QuadTree quadtree);
-float miniumumQuadSize(QuadTree quadtree);
+QuadTree *quadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
+void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera);
+void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
+int maxQuads();
+float miniumumQuadSize(float width);
 
 #endif // ptest_quadtree_h

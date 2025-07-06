@@ -45,6 +45,8 @@ typedef struct GameData {
 
     Button buttonStart;
     Button buttonQuadTree;
+
+    bool paused;
 } GameData;
 
 static GameData gameData;
@@ -81,6 +83,8 @@ void initGameData() {
         newButton((Rectangle){WIDTH / 2 - 200 / 2 - 200, HEIGHT / 2, 200, 100}, true, "Grid", 32, toGrid);
     gameData.buttonQuadTree =
         newButton((Rectangle){WIDTH / 2 - 200 / 2 + 200, HEIGHT / 2, 200, 100}, true, "QuadTree", 32, toQuadTree);
+
+    gameData.paused = true;
 }
 
 void freeGameData() {
@@ -172,12 +176,20 @@ void updateSceneQuadTree() {
     }
 
     if (IsKeyPressed(KEY_SPACE)) {
-        evolveQuadtree(gameData.quadtree, gameData.quadtreeAlt);
+        gameData.paused = !gameData.paused;
+    }
 
-        // Swapping the trees
-        QuadTree *temp = gameData.quadtree;
-        gameData.quadtree = gameData.quadtreeAlt;
-        gameData.quadtreeAlt = temp;
+    if (!gameData.paused) {
+        if (gameData.timer > 0.1f) {
+            evolveQuadtree(gameData.quadtree, gameData.quadtreeAlt);
+
+            // Swapping the trees
+            QuadTree *temp = gameData.quadtree;
+            gameData.quadtree = gameData.quadtreeAlt;
+            gameData.quadtreeAlt = temp;
+
+            gameData.timer = 0.0f;
+        }
     }
 }
 
@@ -229,7 +241,6 @@ void drawSceneQuadTree() {
 
     BeginMode2D(gameData.camera);
 
-
     float gridCellSize = miniumumQuadSize(512.0f);
     int cells = maxQuads();
 
@@ -243,8 +254,8 @@ void drawSceneQuadTree() {
     DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);
 
 #ifdef DEBUG_QUADINFO
-    DrawText(TextFormat("%p", gameData.quadtree), 200, HEIGHT-100, 32, WHITE);
-    DrawText(TextFormat("%p", gameData.quadtreeAlt), 800, HEIGHT-100, 32, WHITE);
+    DrawText(TextFormat("%p", gameData.quadtree), 200, HEIGHT - 100, 32, WHITE);
+    DrawText(TextFormat("%p", gameData.quadtreeAlt), 800, HEIGHT - 100, 32, WHITE);
 #endif
 }
 

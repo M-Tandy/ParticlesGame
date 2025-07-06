@@ -3,6 +3,9 @@
 
 #include "raylib.h"
 
+// #define DEBUG_QUADINFO
+// #define DEBUG_DRAW_QUADS
+
 #define IN_BBOX(vector, bbox)                                                                                          \
     (vector.x >= bbox.min.x && vector.y >= bbox.min.y && vector.x <= bbox.max.x && vector.y <= bbox.max.y)
 #define IN_RECT(vector, rect)                                                                                          \

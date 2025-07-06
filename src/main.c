@@ -19,8 +19,8 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #include "rlgl.h"
 #include "ui.h"
 
-#define WIDTH 1280
-#define HEIGHT 800
+#define WIDTH 1600
+#define HEIGHT 900
 
 typedef enum {
     TITLE,
@@ -37,7 +37,8 @@ typedef struct GameData {
     int gridy;
     int gridScale;
 
-    QuadTree quadtree;
+    QuadTree *quadtree;
+    QuadTree *quadtreeAlt;
 
     Camera2D camera;
     float timer;
@@ -61,9 +62,19 @@ void initGameData() {
     gameData.gridx = -gridDrawWidth(gameData.gridScale, gameData.grid1) / 2;
     gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
 
-    gameData.quadtree = newQuadTree();
+    gameData.quadtree = malloc(sizeof(QuadTree));
+    gameData.quadtreeAlt = malloc(sizeof(QuadTree));
+
+    initQuadTree(gameData.quadtree, 0);
+    initQuadTree(gameData.quadtreeAlt, 0);
+
+    // REQUIRED. Things break if the quadtree is not subdivided at all
+    fullySubdivide(gameData.quadtree);
+    fullySubdivide(gameData.quadtreeAlt);
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
+    // For drawing both quads
+    // gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0 - 400, HEIGHT / 2.0}, .zoom = 1.0f};
     gameData.timer = 0.0f;
 
     gameData.buttonStart =
@@ -75,7 +86,12 @@ void initGameData() {
 void freeGameData() {
     freeGrid(&gameData.grid1);
     freeGrid(&gameData.grid2);
-    freeQuadTree(&gameData.quadtree);
+
+    freeQuadTree(gameData.quadtree);
+    freeQuadTree(gameData.quadtreeAlt);
+
+    free(gameData.quadtree);
+    free(gameData.quadtreeAlt);
 }
 
 void updateSceneTitle() {
@@ -144,10 +160,24 @@ void updateSceneQuadTree() {
     cameraUpdate();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-        QuadTree *inTree = quadFromPosition(mousePos, &gameData.quadtree, (Vector2){0.0f, 0.0f}, 800.0f);
-        if (inTree != NULL && !isSubdivided(*inTree)) {
-            subdivideQuadTree(inTree);
+        QuadrantValue *lowestTree = quadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f);
+        QuadrantValue *lowestTreeAlt = quadFromPosition(mousePos, gameData.quadtreeAlt, (Vector2){0.0f, 0.0f}, 512.0f);
+        if (IS_QUADTREE(*lowestTree) && !isSubdivided(*AS_QUADTREE(*lowestTree))) {
+            subdivide(AS_QUADTREE(*lowestTree));
+            subdivide(AS_QUADTREE(*lowestTreeAlt));
+        } else if (IS_INT(*lowestTree)) {
+            AS_INT(*lowestTree) = ++AS_INT(*lowestTree) % 2;
+            // AS_INT(*lowestTreeAlt) = ++AS_INT(*lowestTreeAlt) % 2;
         }
+    }
+
+    if (IsKeyPressed(KEY_SPACE)) {
+        evolveQuadtree(gameData.quadtree, gameData.quadtreeAlt);
+
+        // Swapping the trees
+        QuadTree *temp = gameData.quadtree;
+        gameData.quadtree = gameData.quadtreeAlt;
+        gameData.quadtreeAlt = temp;
     }
 }
 
@@ -199,17 +229,23 @@ void drawSceneQuadTree() {
 
     BeginMode2D(gameData.camera);
 
-    drawQuadTree(gameData.quadtree, (Vector2){0.0f, 0.0f}, 800.0f, gameData.camera);
 
-    float gridCellSize = miniumumQuadSize(800.0f);
+    float gridCellSize = miniumumQuadSize(512.0f);
     int cells = maxQuads();
-    // drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
 
+    drawQuadTree(*gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f, gameData.camera);
+    // drawQuadTree(*gameData.quadtreeAlt, (Vector2){800.0f, 0.0f}, 512.0f, gameData.camera);
     Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-    drawQuadFromPosition(mousePos, &gameData.quadtree, (Vector2){0.0f, 0.0f}, 800.0f);
+    drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f);
+    drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
 
     EndMode2D();
     DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);
+
+#ifdef DEBUG_QUADINFO
+    DrawText(TextFormat("%p", gameData.quadtree), 200, HEIGHT-100, 32, WHITE);
+    DrawText(TextFormat("%p", gameData.quadtreeAlt), 800, HEIGHT-100, 32, WHITE);
+#endif
 }
 
 void draw() {

@@ -46,6 +46,7 @@ typedef struct QuadTree {
 void initQuadTree(QuadTree *quadtree, int depth);
 QuadTree newQuadTree();
 void freeQuadTree(QuadTree *quadtree);
+bool quadtreesEqual(QuadTree *left, QuadTree *right);
 bool isSubdivided(QuadTree quadtree);
 bool subdivide(QuadTree *quadtree);
 void fullySubdivide(QuadTree *quadtree);

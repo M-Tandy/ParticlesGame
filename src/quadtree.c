@@ -5,22 +5,9 @@
 
 #include "common.h"
 #include "draw.h"
+#include "hash.h"
 #include "quadtree.h"
 #include "raymath.h"
-
-// -- Point
-typedef struct Point {
-    int x;
-    int y;
-} Point;
-
-Point newPoint(int x, int y) { return (Point){x, y}; }
-
-// -- Node
-typedef struct Node {
-    Point pos;
-    int data;
-} Node;
 
 typedef enum Quadrant {
     NW,
@@ -30,8 +17,6 @@ typedef enum Quadrant {
 } Quadrant;
 
 static QuadrantValue empty = EMPTY_VALUE;
-
-Node newNode(Point pos, int data) { return (Node){pos, data}; }
 
 // Quadrant
 Quadrant pointToQuadrant(Vector2 point, Vector2 center) {
@@ -112,7 +97,41 @@ void freeQuadTree(QuadTree *quadtree) {
     freeQuadrant(SE, quadtree);
 }
 
+// Compare two `QuadrantValue`'s.
+bool compareValues(QuadrantValue left, QuadrantValue right) {
+    if (left.type != right.type) {
+        return false;
+    }
+
+    if (IS_QUADTREE(left)) {
+        // If the quadtrees have the same pointer, they are equal.
+        return AS_QUADTREE(left) == AS_QUADTREE(right);
+    } else {
+        return AS_INT(left) == AS_INT(right);
+    }
+}
+
+// Returns `true` if the quadtrees have the same values inside. Two `QuadTree` values are the same if they have the same
+// pointer.
+bool quadtreesEqual(QuadTree *left, QuadTree *right) {
+    if (left->depth != right->depth || !isSubdivided(*left) || !isSubdivided(*right)) {
+        return false;
+    }
+    return compareValues(left->NW, right->NW) && compareValues(left->NE, right->NE) &&
+           compareValues(left->SW, right->SW) && compareValues(left->SE, right->SE);
+}
+
 bool isSubdivided(QuadTree quadtree) { return !IS_QUADTREE(quadtree.NE) || AS_QUADTREE(quadtree.NE) != NULL; }
+
+int hashQuad(QuadTree *quadtree) {
+    if (IS_QUADTREE(quadtree->NW)) {
+        return hash_ptr(AS_QUADTREE(quadtree->NW)) + 2 * hash_ptr(AS_QUADTREE(quadtree->NE)) +
+               4 * hash_ptr(AS_QUADTREE(quadtree->SW)) + 8 * hash_ptr(AS_QUADTREE(quadtree->SE));
+    } else {
+        // TODO: Use canonical blocks?
+        return AS_INT(quadtree->NW);
+    }
+}
 
 // Subdivide the given quadtree, allocating memory and instantiating the 4 quadrants quad trees.
 bool subdivide(QuadTree *quadtree) {
@@ -237,7 +256,7 @@ void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camer
     drawCenteredSquare(center, 2, GREEN);
     drawCenteredSquareLines(center, width, GREEN);
 
-#endif //DEBUG_DRAWQUADS
+#endif // DEBUG_DRAWQUADS
 
 #undef DRAW_QUAD
 #undef DRAW_INT

@@ -17,6 +17,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "table.h"
 #include "ui.h"
 
 #define WIDTH 1600
@@ -51,6 +52,8 @@ typedef struct GameData {
 
 static GameData gameData;
 
+Table quadtrees;
+
 void toGrid() { gameData.scene = GRID; }
 
 void toQuadTree() { gameData.scene = QUADTREE; }
@@ -64,15 +67,9 @@ void initGameData() {
     gameData.gridx = -gridDrawWidth(gameData.gridScale, gameData.grid1) / 2;
     gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
 
-    gameData.quadtree = malloc(sizeof(QuadTree));
-    gameData.quadtreeAlt = malloc(sizeof(QuadTree));
-
-    initQuadTree(gameData.quadtree, 0);
-    initQuadTree(gameData.quadtreeAlt, 0);
-
-    // REQUIRED. Things break if the quadtree is not subdivided at all
-    fullySubdivide(gameData.quadtree);
-    fullySubdivide(gameData.quadtreeAlt);
+    initQuadTable();
+    gameData.quadtree = newEmptyQuadTree(3);
+    gameData.quadtreeAlt = newEmptyQuadTree(3);
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     // For drawing both quads
@@ -90,12 +87,6 @@ void initGameData() {
 void freeGameData() {
     freeGrid(&gameData.grid1);
     freeGrid(&gameData.grid2);
-
-    freeQuadTree(gameData.quadtree);
-    freeQuadTree(gameData.quadtreeAlt);
-
-    free(gameData.quadtree);
-    free(gameData.quadtreeAlt);
 }
 
 void updateSceneTitle() {
@@ -246,9 +237,9 @@ void drawSceneQuadTree() {
 
     drawQuadTree(*gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f, gameData.camera);
     // drawQuadTree(*gameData.quadtreeAlt, (Vector2){800.0f, 0.0f}, 512.0f, gameData.camera);
-    Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-    drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f);
-    drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
+    // Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+    // drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f);
+    // drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
 
     EndMode2D();
     DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);

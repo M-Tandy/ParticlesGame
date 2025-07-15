@@ -1,6 +1,8 @@
 #ifndef ptest_quadtree_h
 #define ptest_quadtree_h
 
+#include <stdint.h>
+
 #include "raylib.h"
 
 #define QUADTREE_MAX_DEPTH 6
@@ -21,16 +23,16 @@ typedef struct QuadrantValue {
     } as;
 } QuadrantValue;
 
-#define IS_INT(qvalue)      (((qvalue).type) == VAL_INT)
+#define IS_INT(qvalue) (((qvalue).type) == VAL_INT)
 #define IS_QUADTREE(qvalue) (((qvalue).type) == VAL_TREE)
-#define IS_EMPTY(qvalue)    (((qvalue).type) == VAL_EMPTY)
+#define IS_EMPTY(qvalue) (((qvalue).type) == VAL_EMPTY)
 
-#define AS_INT(qvalue)      ((qvalue).as.integer)
+#define AS_INT(qvalue) ((qvalue).as.integer)
 #define AS_QUADTREE(qvalue) ((qvalue).as.quadtree)
 
-#define INT_VALUE(value)         ((QuadrantValue){VAL_INT, { .integer = value }})
-#define QUADTREE_VALUE(qtree)    ((QuadrantValue){VAL_TREE, { .quadtree = (QuadTree *)qtree }})
-#define EMPTY_VALUE              ((QuadrantValue){VAL_TREE, { .quadtree = (QuadTree *)NULL }})
+#define INT_VALUE(value) ((QuadrantValue){VAL_INT, {.integer = value}})
+#define QUADTREE_VALUE(qtree) ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)qtree}})
+#define EMPTY_VALUE ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)NULL}})
 
 typedef struct QuadTree {
     int depth;
@@ -39,9 +41,15 @@ typedef struct QuadTree {
     struct QuadrantValue NE;
     struct QuadrantValue SW;
     struct QuadrantValue SE;
+
+    uint32_t hash;
 } QuadTree;
 
 #define GET_QUADRANT(quadtree, value) ((quadtree).value)
+
+
+QuadTree *newEmptyQuadTree(int depth);
+void initQuadTable();
 
 void initQuadTree(QuadTree *quadtree, int depth);
 QuadTree newQuadTree();

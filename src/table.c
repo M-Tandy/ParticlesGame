@@ -62,11 +62,12 @@ static void adjustCapacity(Table *table, int capacity) {
         Entry *dest = findEntry(entries, capacity, entry->key);
         dest->key = entry->key;
         dest->value = entry->value;
+        table->count++;
     }
 
     FREE_ARRAY(Entry, table->entries, table->capacity);
     table->entries = entries;
-    table->count = 0;
+    table->capacity = capacity;
 }
 
 bool tableSet(Table *table, uint32_t key, QuadTree *value) {

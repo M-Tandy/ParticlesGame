@@ -50,6 +50,7 @@ typedef struct QuadTree {
 
 QuadTree *newEmptyQuadTree(int depth);
 void initQuadTable();
+QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const QuadTree *quadtree, QuadrantValue value);
 
 void initQuadTree(QuadTree *quadtree, int depth);
 QuadTree newQuadTree();

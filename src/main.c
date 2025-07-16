@@ -69,7 +69,7 @@ void initGameData() {
 
     initQuadTable();
     gameData.quadtree = newEmptyQuadTree(3);
-    gameData.quadtreeAlt = newEmptyQuadTree(3);
+    gameData.quadtreeAlt = newEmptyQuadTree(2);
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     // For drawing both quads
@@ -155,14 +155,9 @@ void updateSceneQuadTree() {
     cameraUpdate();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-        QuadrantValue *lowestTree = quadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f);
-        QuadrantValue *lowestTreeAlt = quadFromPosition(mousePos, gameData.quadtreeAlt, (Vector2){0.0f, 0.0f}, 512.0f);
-        if (IS_QUADTREE(*lowestTree) && !isSubdivided(*AS_QUADTREE(*lowestTree))) {
-            subdivide(AS_QUADTREE(*lowestTree));
-            subdivide(AS_QUADTREE(*lowestTreeAlt));
-        } else if (IS_INT(*lowestTree)) {
-            AS_INT(*lowestTree) = ++AS_INT(*lowestTree) % 2;
-            // AS_INT(*lowestTreeAlt) = ++AS_INT(*lowestTreeAlt) % 2;
+        QuadTree *newTree = setPointInQuadTree(mousePos, (Vector2){0.0f, 0.0f}, 512.0f, gameData.quadtree, INT_VALUE(-1));
+        if (newTree != NULL) {
+            gameData.quadtree = newTree;
         }
     }
 

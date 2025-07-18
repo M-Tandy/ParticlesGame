@@ -13,6 +13,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #include "cell.h"
 #include "common.h"
 #include "draw.h"
+#include "debug.h"
 #include "quadtree.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -39,7 +40,6 @@ typedef struct GameData {
     int gridScale;
 
     QuadTree *quadtree;
-    QuadTree *quadtreeAlt;
 
     Camera2D camera;
     float timer;
@@ -68,8 +68,7 @@ void initGameData() {
     gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
 
     initQuadTable();
-    gameData.quadtree = newEmptyQuadTree(3);
-    gameData.quadtreeAlt = newEmptyQuadTree(2);
+    gameData.quadtree = newEmptyQuadTree(6);
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     // For drawing both quads
@@ -155,10 +154,15 @@ void updateSceneQuadTree() {
     cameraUpdate();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-        QuadTree *newTree = setPointInQuadTree(mousePos, (Vector2){0.0f, 0.0f}, 512.0f, gameData.quadtree, INT_VALUE(-1));
+        QuadTree *newTree =
+            setPointInQuadTree(mousePos, (Vector2){0.0f, 0.0f}, 512.0f, gameData.quadtree, INT_VALUE(-1));
         if (newTree != NULL) {
             gameData.quadtree = newTree;
         }
+    }
+
+    if (IsKeyPressed(KEY_L)) {
+        printTreeTable();
     }
 
     if (IsKeyPressed(KEY_SPACE)) {
@@ -167,12 +171,7 @@ void updateSceneQuadTree() {
 
     if (!gameData.paused) {
         if (gameData.timer > 0.1f) {
-            evolveQuadtree(gameData.quadtree, gameData.quadtreeAlt);
-
-            // Swapping the trees
-            QuadTree *temp = gameData.quadtree;
-            gameData.quadtree = gameData.quadtreeAlt;
-            gameData.quadtreeAlt = temp;
+            gameData.quadtree = evolveQuadtreeNew(gameData.quadtree);
 
             gameData.timer = 0.0f;
         }
@@ -241,7 +240,6 @@ void drawSceneQuadTree() {
 
 #ifdef DEBUG_QUADINFO
     DrawText(TextFormat("%p", gameData.quadtree), 200, HEIGHT - 100, 32, WHITE);
-    DrawText(TextFormat("%p", gameData.quadtreeAlt), 800, HEIGHT - 100, 32, WHITE);
 #endif
 }
 
@@ -271,6 +269,8 @@ void draw() {
 int main() {
     // Tell the window to use vsync and work on high DPI displays
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+
+    SetTraceLogCallback(CustomLog);
 
     // Create the window and OpenGL context
     InitWindow(WIDTH, HEIGHT, "Cellular Alpha 0.0.1");

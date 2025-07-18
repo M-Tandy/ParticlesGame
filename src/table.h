@@ -26,4 +26,6 @@ bool tableSet(Table *table, uint32_t key, QuadTree *value);
 void tableAddAll(Table *from, Table *to);
 QuadTree *tableFindQuadTree(Table *table, QuadTree *quadtree, uint32_t hash);
 
+void tablePrint(Table *table);
+
 #endif // !ptest_table_h

@@ -20,6 +20,8 @@ typedef enum Quadrant {
 
 Table quadtrees;
 
+void printTreeTable() { tablePrint(&quadtrees); }
+
 int hashQuad(QuadrantValue quad) {
     switch (quad.type) {
 
@@ -37,9 +39,7 @@ int hashQuads(QuadrantValue nw, QuadrantValue ne, QuadrantValue sw, QuadrantValu
     return hashQuad(nw) + 2 * hashQuad(ne) + 4 * hashQuad(sw) + 8 * hashQuad(se);
 }
 
-int hashQuadtree(const QuadTree *quadtree) { 
-    return hashQuads(quadtree->NW, quadtree->NE, quadtree->SW, quadtree->SE); 
-}
+int hashQuadtree(const QuadTree *quadtree) { return hashQuads(quadtree->NW, quadtree->NE, quadtree->SW, quadtree->SE); }
 
 // Quadrant
 Quadrant pointToQuadrant(Vector2 point, Vector2 center) {
@@ -148,7 +148,7 @@ void initEmptyQuad(QuadTree *quadtree, int depth) {
 
 static QuadTree leafNode(int nw, int ne, int sw, int se) {
     QuadTree quadtree =
-        (QuadTree){.depth = 0, .NW = INT_VALUE(nw), .NE = INT_VALUE(ne), .SW = INT_VALUE(sw), .SE = INT_VALUE(se)};
+        (QuadTree){.depth = 1, .NW = INT_VALUE(nw), .NE = INT_VALUE(ne), .SW = INT_VALUE(sw), .SE = INT_VALUE(se)};
     quadtree.hash = hashQuads(INT_VALUE(nw), INT_VALUE(ne), INT_VALUE(sw), INT_VALUE(se));
     return quadtree;
 }
@@ -165,7 +165,20 @@ static QuadTree treeNode(int depth, const QuadTree *nw, const QuadTree *ne, cons
     return quadtree;
 }
 
-static bool isNode(QuadrantValue qvalue) { return IS_QUADTREE(qvalue); }
+static bool isTreeNode(QuadrantValue qvalue) { return IS_QUADTREE(qvalue); }
+
+// Returns the interned node with the given values. Creates the interned node if it does not exist.
+static QuadTree *node(int depth, QuadrantValue nw, QuadrantValue ne, QuadrantValue sw, QuadrantValue se) {
+    QuadTree quadtree = (QuadTree){.depth = depth, .NW = nw, .NE = ne, .SW = sw, .SE = se};
+    quadtree.hash = hashQuads(nw, ne, sw, se);
+
+    QuadTree *interned = tableFindQuadTree(&quadtrees, &quadtree, quadtree.hash);
+    if (interned == NULL) {
+        interned = allocateQuadTree(nw, ne, sw, se, depth, quadtree.hash);
+    }
+
+    return interned;
+}
 
 // We will set 0 to be the lowest depth (leafs)
 QuadTree *newEmptyQuadTree(int depth) {
@@ -174,14 +187,14 @@ QuadTree *newEmptyQuadTree(int depth) {
     // Check if the empty leaf is already interned
     QuadTree *quadtree = tableFindQuadTree(&quadtrees, &emptyLeaf, emptyLeaf.hash);
     if (quadtree == NULL) {
-        quadtree = allocateQuadTree(INT_VALUE(0), INT_VALUE(0), INT_VALUE(0), INT_VALUE(0), 0, emptyLeaf.hash);
+        quadtree = allocateQuadTree(INT_VALUE(0), INT_VALUE(0), INT_VALUE(0), INT_VALUE(0), 1, emptyLeaf.hash);
     }
 
     // Building the empty nodes from the leaf node upwards until the tree is full
-    int i = 1;
-    while (i < depth) {
+    int i = 2;
+    while (i <= depth) {
         QuadTree newTree = treeNode(i, quadtree, quadtree, quadtree, quadtree);
-        QuadTree *temp = tableFindQuadTree(&quadtrees, &newTree, newTree.hash); // BUG: Hash seems to be wrongly interned? Maybe?
+        QuadTree *temp = tableFindQuadTree(&quadtrees, &newTree, newTree.hash);
         if (temp == NULL) {
             quadtree = allocateQuadTree(QUADTREE_VALUE(quadtree), QUADTREE_VALUE(quadtree), QUADTREE_VALUE(quadtree),
                                         QUADTREE_VALUE(quadtree), i, newTree.hash);
@@ -309,9 +322,7 @@ Vector2 centerOfQuadrant(Quadrant quadrant, Vector2 center, float width) {
     }
 }
 
-QuadrantValue flip(QuadrantValue value) {
-    return INT_VALUE((AS_INT(value) + 1) % 2);
-}
+QuadrantValue flip(QuadrantValue value) { return INT_VALUE((AS_INT(value) + 1) % 2); }
 
 // Set's leaf value at the given point in space to the given value, and returns the pointer with that value.
 // This doesn't edit the quadtree, just returns the quadtree with that pointer as value
@@ -331,7 +342,8 @@ QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const Q
         // Base Case - This quadtree is a leaf node, and qvalue is an integer
         copy = copyQuadTree(quadtree);
         QuadrantValue newValue = AS_INT(value) == -1 ? flip(quadrantGet(quadrant, &copy)) : value;
-        quadrantSet(quadrant, &copy, newValue); // TODO: We use -1 to represent a flip. Integer overflow will case a problem?
+        quadrantSet(quadrant, &copy,
+                    newValue); // TODO: We use -1 to represent a flip. Integer overflow will case a problem?
     } else {
         // Recursively go down until at a leaf
         center = centerOfQuadrant(quadrant, center, width / 2.0f);
@@ -432,7 +444,7 @@ void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camer
     (drawCenteredSquare(centerOfQuadrant(quad, center, width / 2.0f), 0.9f * width / 2.0f,                             \
                         AS_INT(tree.quad) == 0 ? GRAY : BLUE))
 
-    if (isNode(quadtree.NW)) {
+    if (isTreeNode(quadtree.NW)) {
         DRAW_QUAD(quadtree, NW);
         DRAW_QUAD(quadtree, NE);
         DRAW_QUAD(quadtree, SW);
@@ -440,13 +452,17 @@ void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camer
 
 #ifdef DEBUG_QUADINFO
         Vector2 textPos = centerOfQuadrant(NW, center, width / 2.0f);
-        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.NW), AS_QUADTREE(quadtree.NW)->hash), textPos.x, textPos.y, 12, WHITE);
+        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.NW), AS_QUADTREE(quadtree.NW)->hash), textPos.x,
+                 textPos.y, 12, WHITE);
         textPos = centerOfQuadrant(NE, center, width / 2.0f);
-        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.NE), AS_QUADTREE(quadtree.NE)->hash), textPos.x, textPos.y, 12, WHITE);
+        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.NE), AS_QUADTREE(quadtree.NE)->hash), textPos.x,
+                 textPos.y, 12, WHITE);
         textPos = centerOfQuadrant(SW, center, width / 2.0f);
-        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.SW), AS_QUADTREE(quadtree.SW)->hash), textPos.x, textPos.y, 12, WHITE);
+        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.SW), AS_QUADTREE(quadtree.SW)->hash), textPos.x,
+                 textPos.y, 12, WHITE);
         textPos = centerOfQuadrant(SE, center, width / 2.0f);
-        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.SE), AS_QUADTREE(quadtree.SE)->hash), textPos.x, textPos.y, 12, WHITE);
+        DrawText(TextFormat("%p \n %lu", AS_QUADTREE(quadtree.SE), AS_QUADTREE(quadtree.SE)->hash), textPos.x,
+                 textPos.y, 12, WHITE);
 #endif
     } else if (isLeaf(quadtree.NW)) {
         DRAW_INT(quadtree, NW);
@@ -457,7 +473,7 @@ void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camer
 
 #ifdef DEBUG_DRAW_QUADS
     Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), camera);
-    drawCenteredSquare(center, 2, GREEN);
+    drawCenteredSquare(center, 2, quadtree.depth % 2 == 0 ? GREEN : PURPLE);
     drawCenteredSquareLines(center, width, GREEN);
 
 #endif // DEBUG_DRAWQUADS
@@ -520,6 +536,122 @@ int gameOfLife(CellNeighbourhood n) {
     }
     // Live cell
     return count == 2 || count == 3;
+}
+
+QuadTree *evolveBaseCaseNew(const QuadTree *quadtree) {
+    QuadTree *nw = AS_QUADTREE(quadtree->NW);
+    QuadTree *ne = AS_QUADTREE(quadtree->NE);
+    QuadTree *sw = AS_QUADTREE(quadtree->SW);
+    QuadTree *se = AS_QUADTREE(quadtree->SE);
+
+    CellNeighbourhood n = fromQuadrantValues(nw->NW, nw->NE, ne->NW, nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW);
+    int center_nw = gameOfLife(n);
+
+    n = fromQuadrantValues(nw->NE, ne->NW, ne->NE, nw->SE, ne->SW, ne->SE, sw->NE, se->NW, se->NE);
+    int center_ne = gameOfLife(n);
+
+    n = fromQuadrantValues(nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW, sw->SW, sw->SE, se->SW);
+    int center_sw = gameOfLife(n);
+
+    n = fromQuadrantValues(nw->SE, ne->SW, ne->SE, sw->NE, se->NW, se->NE, sw->SE, se->SW, se->SE);
+    int center_se = gameOfLife(n);
+
+    QuadTree result = leafNode(center_nw, center_ne, center_sw, center_se);
+    QuadTree *interned = tableFindQuadTree(&quadtrees, &result, result.hash);
+    if (interned == NULL) {
+        interned = allocateQuadTree(result.NW, result.NE, result.SW, result.SE, 1, result.hash);
+    }
+
+    return interned;
+}
+
+// Returns a quadtree with a depth 1 lower than the given tree
+QuadTree *evolveNew(const QuadTree *quadtree) {
+    if (quadtree->depth == 2) {
+        return evolveBaseCaseNew(quadtree);
+    }
+
+    QuadTree *nw = AS_QUADTREE(quadtree->NW);
+    QuadTree *ne = AS_QUADTREE(quadtree->NE);
+    QuadTree *sw = AS_QUADTREE(quadtree->SW);
+    QuadTree *se = AS_QUADTREE(quadtree->SE);
+
+    QuadTree *nw_center = evolveNew(AS_QUADTREE(quadtree->NW));
+    QuadTree *ne_center = evolveNew(AS_QUADTREE(quadtree->NE));
+    QuadTree *sw_center = evolveNew(AS_QUADTREE(quadtree->SW));
+    QuadTree *se_center = evolveNew(AS_QUADTREE(quadtree->SE));
+
+    QuadTree *n = evolveNew(&(QuadTree){
+        .depth = quadtree->depth - 1,
+        .NW = nw->NE,
+        .NE = ne->NW,
+        .SW = nw->SE,
+        .SE = ne->SW,
+    });
+
+    QuadTree *e = evolveNew(&(QuadTree){
+        .depth = quadtree->depth - 1,
+        .NW = ne->SW,
+        .NE = ne->SE,
+        .SW = se->NW,
+        .SE = se->NE,
+    });
+
+    QuadTree *s = evolveNew(&(QuadTree){
+        .depth = quadtree->depth - 1,
+        .NW = sw->NE,
+        .NE = se->NW,
+        .SW = sw->SE,
+        .SE = se->SW,
+    });
+
+    QuadTree *w = evolveNew(&(QuadTree){
+        .depth = quadtree->depth - 1,
+        .NW = nw->SW,
+        .NE = nw->SE,
+        .SW = sw->NW,
+        .SE = sw->NE,
+    });
+
+    QuadTree *c = evolveNew(&(QuadTree){
+        .depth = quadtree->depth - 1,
+        .NW = nw->SE,
+        .NE = ne->SW,
+        .SW = sw->NE,
+        .SE = se->NW,
+    });
+
+    QuadTree *result_nw = node(quadtree->depth - 2, nw_center->SE, n->SW, w->NE, c->NW);
+    QuadTree *result_ne = node(quadtree->depth - 2, n->SE, ne_center->SW, c->NE, e->NW);
+    QuadTree *result_sw = node(quadtree->depth - 2, w->SE, c->SW, sw_center->NE, s->NW);
+    QuadTree *result_se = node(quadtree->depth - 2, c->SE, e->SW, s->NE, se_center->NW);
+
+    QuadTree result = treeNode(quadtree->depth - 1, result_nw, result_ne, result_sw, result_se);
+    QuadTree *interned = tableFindQuadTree(&quadtrees, &result, result.hash);
+    if (interned == NULL) {
+        interned = allocateQuadTree(result.NW, result.NE, result.SW, result.SE, result.depth, result.hash);
+    }
+
+    return interned;
+}
+
+QuadTree *evolveQuadtreeNew(const QuadTree *quadtree) {
+    QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
+
+    QuadTree nw = treeNode(quadtree->depth, empty, empty, empty, AS_QUADTREE(quadtree->NW));
+    QuadTree ne = treeNode(quadtree->depth, empty, empty, AS_QUADTREE(quadtree->NE), empty);
+    QuadTree sw = treeNode(quadtree->depth, empty, AS_QUADTREE(quadtree->SW), empty, empty);
+    QuadTree se = treeNode(quadtree->depth, AS_QUADTREE(quadtree->SE), empty, empty, empty);
+
+    QuadTree wrapped = treeNode(quadtree->depth + 1, &nw, &ne, &sw, &se);
+
+    // DONT DO THIS! You should never edit the contents of an interned object
+    // AS_QUADTREE(wrapper->NW)->SE = quadtree->NW;
+    // AS_QUADTREE(wrapper->NE)->SW = quadtree->NE;
+    // AS_QUADTREE(wrapper->SW)->NE = quadtree->SW;
+    // AS_QUADTREE(wrapper->SE)->NW = quadtree->SE;
+
+    return evolveNew(&wrapped);
 }
 
 void evolveBaseCase(QuadTree *quadtree, QuadTree *result) {

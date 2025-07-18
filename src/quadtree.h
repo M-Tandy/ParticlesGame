@@ -47,10 +47,12 @@ typedef struct QuadTree {
 
 #define GET_QUADRANT(quadtree, value) ((quadtree).value)
 
+void printTreeTable();
 
 QuadTree *newEmptyQuadTree(int depth);
 void initQuadTable();
 QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const QuadTree *quadtree, QuadrantValue value);
+QuadTree *evolveQuadtreeNew(const QuadTree *quadtree);
 
 void initQuadTree(QuadTree *quadtree, int depth);
 QuadTree newQuadTree();

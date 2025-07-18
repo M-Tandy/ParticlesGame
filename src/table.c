@@ -1,6 +1,7 @@
 #include "table.h"
 
 #include "common.h"
+#include "debug.h"
 #include "memory.h"
 #include "quadtree.h"
 
@@ -111,5 +112,30 @@ QuadTree *tableFindQuadTree(Table *table, QuadTree *quadtree, uint32_t hash) {
         }
 
         index = (index + 1) % table->capacity;
+    }
+}
+
+void tablePrint(Table *table) {
+    LogMessage(LOG_INFO, "===== [ TABLE ] - [ Capacity : %d | Count : %d ] =====", table->capacity, table->count);
+    if (table->count == 0) {
+        LogMessage(LOG_INFO, "[EMPTY]");
+        return;
+    }
+
+    for (int i = 0; i < table->capacity; i++) {
+        Entry *entry = &table->entries[i];
+        if (entry->key != -1) {
+            if (IS_QUADTREE(entry->value->NW)) {
+                LogMessage(LOG_INFO, "%03d: key: %10lu : %p = [ NW: %p | NE: %p | SW : %p | SE : %p ]", i, entry->key,
+                           entry->value, AS_QUADTREE(entry->value->NW), AS_QUADTREE(entry->value->NE),
+                           AS_QUADTREE(entry->value->SW), AS_QUADTREE(entry->value->SE));
+            } else {
+                LogMessage(LOG_INFO,
+                           "%03d: key: %10lu : %p = [ NW: %.2d             | NE: %.2d             | SW : %.2d             | "
+                           "SE : %.2d             ]",
+                           i, entry->key, entry->value, AS_INT(entry->value->NW), AS_INT(entry->value->NE),
+                           AS_INT(entry->value->SW), AS_INT(entry->value->SE));
+            }
+        }
     }
 }

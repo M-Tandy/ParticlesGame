@@ -23,6 +23,8 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 #define WIDTH 1600
 #define HEIGHT 900
+#define CELLPOWER 6
+#define GRIDWIDTH 2048.0f
 
 typedef enum {
     TITLE,
@@ -68,7 +70,7 @@ void initGameData() {
     gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
 
     initQuadTable();
-    gameData.quadtree = newEmptyQuadTree(6);
+    gameData.quadtree = newEmptyQuadTree(CELLPOWER);
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     // For drawing both quads
@@ -109,17 +111,25 @@ void cameraUpdate() {
         gameData.camera.offset.x += 2 * gameData.camera.zoom;
     }
 
-    if (IsKeyPressed(KEY_O) && gameData.camera.zoom > 1.0f) {
+    if (IsKeyPressed(KEY_O)) {
         Vector2 centerWorldPos = GetScreenToWorld2D((Vector2){WIDTH / 2.0, HEIGHT / 2.0}, gameData.camera);
         gameData.camera.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0};
         gameData.camera.target = centerWorldPos;
-        gameData.camera.zoom -= 1.0f;
+        if (gameData.camera.zoom > 1.0f) {
+            gameData.camera.zoom -= 1.0f;
+        } else {
+            gameData.camera.zoom /= 2.0f;
+        }
     }
-    if (IsKeyPressed(KEY_P) && gameData.camera.zoom < 4.0f) {
+    if (IsKeyPressed(KEY_P) && gameData.camera.zoom < 8.0f) {
         Vector2 centerWorldPos = GetScreenToWorld2D((Vector2){WIDTH / 2.0, HEIGHT / 2.0}, gameData.camera);
         gameData.camera.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0};
         gameData.camera.target = centerWorldPos;
-        gameData.camera.zoom += 1.0f;
+        if (gameData.camera.zoom > 1.0f) {
+            gameData.camera.zoom += 1.0f;
+        } else {
+            gameData.camera.zoom *= 2.0f;
+        }
     }
 }
 
@@ -155,7 +165,7 @@ void updateSceneQuadTree() {
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
         QuadTree *newTree =
-            setPointInQuadTree(mousePos, (Vector2){0.0f, 0.0f}, 512.0f, gameData.quadtree, INT_VALUE(-1));
+            setPointInQuadTree(mousePos, (Vector2){0.0f, 0.0f}, GRIDWIDTH, gameData.quadtree, INT_VALUE(-1));
         if (newTree != NULL) {
             gameData.quadtree = newTree;
         }
@@ -171,7 +181,7 @@ void updateSceneQuadTree() {
 
     if (!gameData.paused) {
         if (gameData.timer > 0.1f) {
-            gameData.quadtree = evolveQuadtreeNew(gameData.quadtree);
+            gameData.quadtree = evolveQuadtree(gameData.quadtree);
 
             gameData.timer = 0.0f;
         }
@@ -226,13 +236,13 @@ void drawSceneQuadTree() {
 
     BeginMode2D(gameData.camera);
 
-    float gridCellSize = miniumumQuadSize(512.0f);
+    float gridCellSize = miniumumQuadSize(GRIDWIDTH);
     int cells = maxQuads();
 
-    drawQuadTree(*gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f, gameData.camera);
-    // drawQuadTree(*gameData.quadtreeAlt, (Vector2){800.0f, 0.0f}, 512.0f, gameData.camera);
+    drawQuadTree(*gameData.quadtree, (Vector2){0.0f, 0.0f}, GRIDWIDTH, gameData.camera);
+    // drawQuadTree(*gameData.quadtreeAlt, (Vector2){800.0f, 0.0f}, GRIDWIDTH, gameData.camera);
     // Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-    // drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, 512.0f);
+    // drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, GRIDWIDTH);
     // drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
 
     EndMode2D();

@@ -63,7 +63,6 @@ static void adjustCapacity(Table *table, int capacity) {
         Entry *dest = findEntry(entries, capacity, entry->key);
         dest->key = entry->key;
         dest->value = entry->value;
-        table->count++;
     }
 
     FREE_ARRAY(Entry, table->entries, table->capacity);
@@ -97,7 +96,7 @@ void tableAddAll(Table *from, Table *to) {
     }
 }
 
-QuadTree *tableFindQuadTree(Table *table, QuadTree *quadtree, uint32_t hash) {
+QuadTree *tableFindQuadTree(Table *table, const QuadTree *quadtree, uint32_t hash) {
     if (table->count == 0) {
         return NULL;
     }
@@ -116,7 +115,7 @@ QuadTree *tableFindQuadTree(Table *table, QuadTree *quadtree, uint32_t hash) {
 }
 
 void tablePrint(Table *table) {
-    LogMessage(LOG_INFO, "===== [ TABLE ] - [ Capacity : %d | Count : %d ] =====", table->capacity, table->count);
+    LogMessage(LOG_INFO, "===== [ TABLE START ] - [ Capacity : %d | Count : %d ] =====", table->capacity, table->count);
     if (table->count == 0) {
         LogMessage(LOG_INFO, "[EMPTY]");
         return;
@@ -138,4 +137,5 @@ void tablePrint(Table *table) {
             }
         }
     }
+    LogMessage(LOG_INFO, "===== [  TABLE END  ] - [ Capacity : %d | Count : %d ] =====", table->capacity, table->count);
 }

@@ -43,6 +43,8 @@ typedef struct QuadTree {
     struct QuadrantValue SE;
 
     uint32_t hash;
+
+    QuadTree *result;
 } QuadTree;
 
 #define GET_QUADRANT(quadtree, value) ((quadtree).value)
@@ -52,12 +54,11 @@ void printTreeTable();
 QuadTree *newEmptyQuadTree(int depth);
 void initQuadTable();
 QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const QuadTree *quadtree, QuadrantValue value);
-QuadTree *evolveQuadtreeNew(const QuadTree *quadtree);
+QuadTree *evolveQuadtree(const QuadTree *quadtree);
 
-void initQuadTree(QuadTree *quadtree, int depth);
 QuadTree newQuadTree();
 void freeQuadTree(QuadTree *quadtree);
-bool quadtreesEqual(QuadTree *left, QuadTree *right);
+bool quadtreesEqual(const QuadTree *left, const QuadTree *right);
 bool isSubdivided(QuadTree quadtree);
 bool subdivide(QuadTree *quadtree);
 void fullySubdivide(QuadTree *quadtree);
@@ -67,6 +68,5 @@ void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, flo
 int maxQuads();
 float miniumumQuadSize(float width);
 
-void evolve(QuadTree *quadtree, QuadTree *result);
-void evolveQuadtree(QuadTree *quadtree, QuadTree *result);
+QuadTree *evolveQuadtree(const QuadTree *quadtree);
 #endif // ptest_quadtree_h

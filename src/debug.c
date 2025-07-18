@@ -32,7 +32,7 @@ void LogMessage(int msgType, const char *format, ...) {
     struct tm *tm_info = localtime(&now);
 
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", tm_info);
-    fprintf(stderr, "[%s] ", timeStr);
+    // fprintf(stderr, "[%s] ", timeStr);
 
     switch (msgType)
     {

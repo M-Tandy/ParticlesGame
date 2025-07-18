@@ -11,6 +11,7 @@
 typedef struct Entry {
     uint32_t key;
     QuadTree *value;
+    QuadTree *result;
 } Entry;
 
 typedef struct Table {
@@ -24,7 +25,7 @@ void freeTable(Table *table);
 bool tableGet(Table *table, uint32_t key, QuadTree *out);
 bool tableSet(Table *table, uint32_t key, QuadTree *value);
 void tableAddAll(Table *from, Table *to);
-QuadTree *tableFindQuadTree(Table *table, QuadTree *quadtree, uint32_t hash);
+QuadTree *tableFindQuadTree(Table *table, const QuadTree *quadtree, uint32_t hash);
 
 void tablePrint(Table *table);
 

@@ -24,7 +24,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #define WIDTH 1600
 #define HEIGHT 900
 #define CELLPOWER 6
-#define GRIDWIDTH 2048.0f
+#define GRIDWIDTH 1024.0f
 
 typedef enum {
     TITLE,
@@ -94,8 +94,6 @@ void initGameData() {
     gameData.mode = ADD;
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
-    // For drawing both quads
-    // gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0 - 400, HEIGHT / 2.0}, .zoom = 1.0f};
     gameData.timer = 0.0f;
 
     gameData.buttonStart =

@@ -20,10 +20,12 @@ typedef enum Quadrant {
 
 Table quadtrees;
 
+// QuadTree table
 void printTreeTable() { tablePrint(&quadtrees); }
+void initQuadTable() { initTable(&quadtrees); }
 
 // Quadrant
-Quadrant pointToQuadrant(Vector2 point, Vector2 center) {
+static Quadrant pointToQuadrant(Vector2 point, Vector2 center) {
     int x = point.x - center.x;
     int y = point.y - center.y;
 
@@ -68,9 +70,6 @@ static void quadrantSet(Quadrant quadrant, QuadTree *quadtree, QuadrantValue val
     }
 }
 
-// Quadrants table
-void initQuadTable() { initTable(&quadtrees); }
-
 // Hashing
 static int hashQvalue(QuadrantValue qvalue) {
     switch (qvalue.type) {
@@ -92,6 +91,25 @@ static int hashQuadrants(QuadrantValue nw, QuadrantValue ne, QuadrantValue sw, Q
 static int hashQuadTree(const QuadTree *quadtree) {
     return hashQuadrants(quadtree->NW, quadtree->NE, quadtree->SW, quadtree->SE);
 }
+
+// QuadrantValues's
+
+// Compare two `QuadrantValue`'s.
+static bool compare(QuadrantValue left, QuadrantValue right) {
+    if (left.type != right.type) {
+        return false;
+    }
+
+    if (IS_QUADTREE(left)) {
+        // If the quadtrees have the same pointer, they are equal. This should work due to interning
+        return AS_QUADTREE(left) == AS_QUADTREE(right);
+    } else {
+        return AS_INT(left) == AS_INT(right);
+    }
+}
+
+// Flips an integer quadrant value between 0 and 1
+static QuadrantValue flip(QuadrantValue value) { return INT_VALUE((AS_INT(value) + 1) % 2); }
 
 // QuadTrees
 
@@ -126,6 +144,18 @@ static QuadTree *copyQuadTree(QuadTree *quadtree) {
     return interned;
 }
 
+// Returns `true` if the quadtrees have the same values inside. Two `QuadTree` values are the same if they have the same
+// pointer.
+bool quadtreesEqual(const QuadTree *left, const QuadTree *right) {
+    if (left->depth != right->depth || !isSubdivided(*left) || !isSubdivided(*right)) {
+        return false;
+    }
+    return compare(left->NW, right->NW) && compare(left->NE, right->NE) && compare(left->SW, right->SW) &&
+           compare(left->SE, right->SE);
+}
+
+bool isSubdivided(QuadTree quadtree) { return !IS_QUADTREE(quadtree.NE) || AS_QUADTREE(quadtree.NE) != NULL; }
+
 static QuadTree leafNode(int nw, int ne, int sw, int se) {
     QuadTree quadtree =
         (QuadTree){.depth = 1, .NW = INT_VALUE(nw), .NE = INT_VALUE(ne), .SW = INT_VALUE(sw), .SE = INT_VALUE(se)};
@@ -158,12 +188,12 @@ static QuadTree *node(int depth, QuadrantValue nw, QuadrantValue ne, QuadrantVal
     return copyQuadTree(&quadtree);
 }
 
-// We will set 0 to be the lowest depth (leafs)
-QuadTree *newEmptyQuadTree(int depth) {
-    QuadTree emptyLeaf = leafNode(0, 0, 0, 0);
+// Creates a quadtree with a constant value throughout
+static QuadTree *newConstantQuadTree(int depth, int x) {
+    QuadTree baseLeaf = leafNode(x, x, x, x);
 
     // Check if the empty leaf is already interned
-    QuadTree *quadtree = copyQuadTree(&emptyLeaf);
+    QuadTree *quadtree = copyQuadTree(&baseLeaf);
 
     // Building the empty nodes from the leaf node upwards until the tree is full
     for (int i = 2; i <= depth; i++) {
@@ -174,34 +204,12 @@ QuadTree *newEmptyQuadTree(int depth) {
     return quadtree;
 }
 
-// Compare two `QuadrantValue`'s.
-static bool compare(QuadrantValue left, QuadrantValue right) {
-    if (left.type != right.type) {
-        return false;
-    }
-
-    if (IS_QUADTREE(left)) {
-        // If the quadtrees have the same pointer, they are equal. This should work due to interning
-        return AS_QUADTREE(left) == AS_QUADTREE(right);
-    } else {
-        return AS_INT(left) == AS_INT(right);
-    }
+// We will set 0 to be the lowest depth (leafs)
+QuadTree *newEmptyQuadTree(int depth) {
+    return newConstantQuadTree(depth, 0);
 }
 
-// Returns `true` if the quadtrees have the same values inside. Two `QuadTree` values are the same if they have the same
-// pointer.
-// TODO: Deprecate. Interning should make this simpler
-bool quadtreesEqual(const QuadTree *left, const QuadTree *right) {
-    if (left->depth != right->depth || !isSubdivided(*left) || !isSubdivided(*right)) {
-        return false;
-    }
-    return compare(left->NW, right->NW) && compare(left->NE, right->NE) && compare(left->SW, right->SW) &&
-           compare(left->SE, right->SE);
-}
-
-bool isSubdivided(QuadTree quadtree) { return !IS_QUADTREE(quadtree.NE) || AS_QUADTREE(quadtree.NE) != NULL; }
-
-Vector2 centerOfQuadrant(Quadrant quadrant, Vector2 center, float width) {
+static Vector2 centerOfQuadrant(Quadrant quadrant, Vector2 center, float width) {
     switch (quadrant) {
     case NW:
         return (Vector2){center.x - width / 2.0f, center.y - width / 2.0f};
@@ -213,9 +221,6 @@ Vector2 centerOfQuadrant(Quadrant quadrant, Vector2 center, float width) {
         return (Vector2){center.x + width / 2.0f, center.y + width / 2.0f};
     }
 }
-
-// Flips an integer quadrant value between 0 and 1
-QuadrantValue flip(QuadrantValue value) { return INT_VALUE((AS_INT(value) + 1) % 2); }
 
 // Set's leaf value at the given point in space to the given value, and returns the pointer with that value.
 // This doesn't edit the quadtree, just returns the quadtree with that pointer as value
@@ -249,39 +254,13 @@ QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const Q
     return copyQuadTree(&copy);
 }
 
-// Assumes that the quadtree has been subdivided at least once. Returns the QuadrantValue located at `point`
-// assuming the quadtree is draw at `center` with size `width`
-QuadrantValue *quadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width) {
-    if (!IN_SQUARE(point, center, width)) {
-        return NULL;
-    }
-
-    if (!isSubdivided(*quadtree)) {
-        return &QUADTREE_VALUE(quadtree);
-    }
-
-    QuadTree *subQuad = quadtree;
-    QuadrantValue value;
-    while (isSubdivided(*subQuad)) {
-        Quadrant quadrant = pointToQuadrant(point, center);
-        value = quadrantGet(quadrant, subQuad);
-        if (IS_INT(value)) {
-            return &value;
-        }
-        subQuad = AS_QUADTREE(value);
-        center = centerOfQuadrant(quadrant, center, width / 2.0f);
-        width /= 2;
-    }
-
-    return &value;
-}
-
+// Drawing
 void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera) {
 
 #define DRAW_QUAD(tree, quad)                                                                                          \
     (drawQuadTree(*AS_QUADTREE(tree.quad), centerOfQuadrant(quad, center, width / 2.0f), width / 2.0f, camera))
 #define DRAW_INT(tree, quad)                                                                                           \
-    (drawCenteredSquare(centerOfQuadrant(quad, center, width), 0.9f * width / 2.0f,                             \
+    (drawCenteredSquare(centerOfQuadrant(quad, center, width / 2.0f), 0.9f * width / 2.0f,                                    \
                         AS_INT(tree.quad) == 0 ? BLACK : BLUE))
 
     if (isTreeNode(quadtree.NW)) {
@@ -346,6 +325,7 @@ int maxQuads(const QuadTree *quadtree) { return pow(2, quadtree->depth); }
 
 float miniumumQuadSize(float width, const QuadTree *quadtree) { return width / (maxQuads(quadtree)); }
 
+// Game of Life
 typedef struct CellNeighbourhood {
     int nw;
     int n;
@@ -365,10 +345,9 @@ CellNeighbourhood fromQuadrantValues(QuadrantValue nw, QuadrantValue n, Quadrant
                                AS_INT(e),  AS_INT(sw), AS_INT(s),  AS_INT(se)};
 }
 
-int surroundingSum(CellNeighbourhood n) { return n.nw + n.n + n.ne + n.w + n.e + n.sw + n.s + n.se; }
+static int surroundingSum(CellNeighbourhood n) { return n.nw + n.n + n.ne + n.w + n.e + n.sw + n.s + n.se; }
 
-// Game of Life
-int gameOfLife(CellNeighbourhood n) {
+static int gameOfLife(CellNeighbourhood n) {
     int count = surroundingSum(n);
     if (n.c == 0) {
         // Dead cell
@@ -378,26 +357,50 @@ int gameOfLife(CellNeighbourhood n) {
     return count == 2 || count == 3;
 }
 
+static int gravity(CellNeighbourhood n) {
+    if (n.c == 0) {
+        if (n.n == 1) {
+            return 1;
+        }
+        if ((n.w == 1 && n.sw != 0) || (n.e == 1 && n.se != 0)) {
+            return 1;
+        }
+    } else if (n.c == 1) {
+        if (n.s == 0) {
+            return 0;
+        }
+        if (n.w == 0) {
+            return 0;
+        }
+        if (n.e == 0) {
+            return 0;
+        }
+    }
+    return n.c;
+}
+
 static QuadTree *evolveBaseCase(QuadTree *quadtree) {
     QuadTree *nw = AS_QUADTREE(quadtree->NW);
     QuadTree *ne = AS_QUADTREE(quadtree->NE);
     QuadTree *sw = AS_QUADTREE(quadtree->SW);
     QuadTree *se = AS_QUADTREE(quadtree->SE);
 
+    int (*f)(CellNeighbourhood n) = gravity;
+
     CellNeighbourhood n = fromQuadrantValues(nw->NW, nw->NE, ne->NW, nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW);
-    int center_nw = gameOfLife(n);
+    int center_nw = f(n);
 
     n = fromQuadrantValues(nw->NE, ne->NW, ne->NE, nw->SE, ne->SW, ne->SE, sw->NE, se->NW, se->NE);
-    int center_ne = gameOfLife(n);
+    int center_ne = f(n);
 
     n = fromQuadrantValues(nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW, sw->SW, sw->SE, se->SW);
-    int center_sw = gameOfLife(n);
+    int center_sw = f(n);
 
     n = fromQuadrantValues(nw->SE, ne->SW, ne->SE, sw->NE, se->NW, se->NE, sw->SE, se->SW, se->SE);
-    int center_se = gameOfLife(n);
+    int center_se = f(n);
 
     QuadTree result = leafNode(center_nw, center_ne, center_sw, center_se);
-    
+
     QuadTree *interned = copyQuadTree(&result);
     quadtree->result = interned;
 
@@ -473,14 +476,19 @@ static QuadTree *evolve(QuadTree *quadtree) {
 
     QuadTree *interned = copyQuadTree(&result);
     quadtree->result = interned;
-    
+
     return interned;
 }
 
 QuadTree *evolveQuadtree(const QuadTree *quadtree) {
     // TODO: Improve this by not recreating the empty each time - Possible store the quadtree in a 1 up date structure
     // and work with that!
-    QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
+    
+    // Game of life
+    // QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
+    
+    // Testing
+    QuadTree *empty = newConstantQuadTree(quadtree->depth - 1, -1);
 
     QuadTree nw = treeNode(quadtree->depth, empty, empty, empty, AS_QUADTREE(quadtree->NW));
     QuadTree ne = treeNode(quadtree->depth, empty, empty, AS_QUADTREE(quadtree->NE), empty);

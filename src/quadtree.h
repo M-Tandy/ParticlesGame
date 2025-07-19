@@ -50,23 +50,21 @@ typedef struct QuadTree {
 #define GET_QUADRANT(quadtree, value) ((quadtree).value)
 
 void printTreeTable();
-
-QuadTree *newEmptyQuadTree(int depth);
 void initQuadTable();
-QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const QuadTree *quadtree, QuadrantValue value);
-QuadTree *evolveQuadtree(const QuadTree *quadtree);
 
-QuadTree newQuadTree();
-void freeQuadTree(QuadTree *quadtree);
 bool quadtreesEqual(const QuadTree *left, const QuadTree *right);
 bool isSubdivided(QuadTree quadtree);
-bool subdivide(QuadTree *quadtree);
-void fullySubdivide(QuadTree *quadtree);
-QuadrantValue *quadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
+
+QuadTree *newEmptyQuadTree(int depth);
+QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const QuadTree *quadtree, QuadrantValue value);
+
 void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera);
 void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
-int maxQuads(const QuadTree *quadtree);
+
 float miniumumQuadSize(float width, const QuadTree *quadtree);
+
+QuadTree *evolveQuadtree(const QuadTree *quadtree);
+int maxQuads(const QuadTree *quadtree);
 
 QuadTree *evolveQuadtree(const QuadTree *quadtree);
 #endif // ptest_quadtree_h

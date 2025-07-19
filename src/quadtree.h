@@ -65,8 +65,8 @@ void fullySubdivide(QuadTree *quadtree);
 QuadrantValue *quadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
 void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera);
 void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
-int maxQuads();
-float miniumumQuadSize(float width);
+int maxQuads(const QuadTree *quadtree);
+float miniumumQuadSize(float width, const QuadTree *quadtree);
 
 QuadTree *evolveQuadtree(const QuadTree *quadtree);
 #endif // ptest_quadtree_h

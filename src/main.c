@@ -12,8 +12,8 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 #include "cell.h"
 #include "common.h"
-#include "draw.h"
 #include "debug.h"
+#include "draw.h"
 #include "quadtree.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -32,6 +32,8 @@ typedef enum {
     QUADTREE,
 } Scene;
 
+typedef enum { ADD, DELETE } Mode;
+
 typedef struct GameData {
     Scene scene;
 
@@ -42,6 +44,8 @@ typedef struct GameData {
     int gridScale;
 
     QuadTree *quadtree;
+
+    Mode mode;
 
     Camera2D camera;
     float timer;
@@ -55,6 +59,21 @@ typedef struct GameData {
 static GameData gameData;
 
 Table quadtrees;
+
+const Vector2 origin = (Vector2){0.0f, 0.0f};
+
+bool mouseDown(MouseButton *button) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        *button = MOUSE_BUTTON_LEFT;
+        return true;
+    }
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+        *button = MOUSE_BUTTON_RIGHT;
+        return true;
+    }
+
+    return false;
+}
 
 void toGrid() { gameData.scene = GRID; }
 
@@ -71,6 +90,8 @@ void initGameData() {
 
     initQuadTable();
     gameData.quadtree = newEmptyQuadTree(CELLPOWER);
+
+    gameData.mode = ADD;
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     // For drawing both quads
@@ -162,12 +183,22 @@ void updateSceneGrid() {
 
 void updateSceneQuadTree() {
     cameraUpdate();
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+
+    MouseButton button;
+    if (mouseDown(&button)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-        QuadTree *newTree =
-            setPointInQuadTree(mousePos, (Vector2){0.0f, 0.0f}, GRIDWIDTH, gameData.quadtree, INT_VALUE(-1));
-        if (newTree != NULL) {
-            gameData.quadtree = newTree;
+        if (IN_SQUARE(mousePos, origin, GRIDWIDTH)) {
+            QuadTree *newTree = NULL;
+
+            if (button == MOUSE_BUTTON_LEFT) {
+                newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(1));
+            } else if (button == MOUSE_BUTTON_RIGHT) {
+                newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(0));
+            }
+
+            if (newTree != NULL) {
+                gameData.quadtree = newTree;
+            }
         }
     }
 
@@ -177,6 +208,10 @@ void updateSceneQuadTree() {
 
     if (IsKeyPressed(KEY_SPACE)) {
         gameData.paused = !gameData.paused;
+    }
+
+    if (IsKeyPressed(KEY_M)) {
+        gameData.mode = gameData.mode == ADD ? DELETE : ADD;
     }
 
     if (!gameData.paused) {
@@ -236,18 +271,18 @@ void drawSceneQuadTree() {
 
     BeginMode2D(gameData.camera);
 
-    float gridCellSize = miniumumQuadSize(GRIDWIDTH);
-    int cells = maxQuads();
+    float gridCellSize = miniumumQuadSize(GRIDWIDTH, gameData.quadtree);
+    int cells = maxQuads(gameData.quadtree);
 
-    drawQuadTree(*gameData.quadtree, (Vector2){0.0f, 0.0f}, GRIDWIDTH, gameData.camera);
-    // drawQuadTree(*gameData.quadtreeAlt, (Vector2){800.0f, 0.0f}, GRIDWIDTH, gameData.camera);
-    // Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+    drawQuadTree(*gameData.quadtree, origin, GRIDWIDTH, gameData.camera);
     // drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, GRIDWIDTH);
-    // drawGridUnderlay((Vector2){0.0f, 0.0f}, cells, cells, gridCellSize);
+    drawGridUnderlay(origin, cells, cells, gridCellSize);
 
     EndMode2D();
     DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);
 
+    DrawText(TextFormat("%s", gameData.mode == ADD ? "ADD" : "DELETE"), 100, HEIGHT - 200, 32, WHITE);
+    DrawText(TextFormat("%s", gameData.paused ? "Paused" : ""), WIDTH - 200, 200, 32, RED);
 #ifdef DEBUG_QUADINFO
     DrawText(TextFormat("%p", gameData.quadtree), 200, HEIGHT - 100, 32, WHITE);
 #endif

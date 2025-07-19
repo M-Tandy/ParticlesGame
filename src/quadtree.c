@@ -221,11 +221,6 @@ QuadrantValue flip(QuadrantValue value) { return INT_VALUE((AS_INT(value) + 1) %
 // This doesn't edit the quadtree, just returns the quadtree with that pointer as value
 QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const QuadTree *quadtree,
                              QuadrantValue value) {
-    if (!IN_SQUARE(point, center, width)) {
-        // point outside of quadtree so do nothing
-        return NULL;
-    }
-
     // Find the quadrant the point is located in
     Quadrant quadrant = pointToQuadrant(point, center);
     QuadrantValue qvalue = quadrantGet(quadrant, quadtree);
@@ -286,8 +281,8 @@ void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camer
 #define DRAW_QUAD(tree, quad)                                                                                          \
     (drawQuadTree(*AS_QUADTREE(tree.quad), centerOfQuadrant(quad, center, width / 2.0f), width / 2.0f, camera))
 #define DRAW_INT(tree, quad)                                                                                           \
-    (drawCenteredSquare(centerOfQuadrant(quad, center, width / 2.0f), 0.9f * width / 2.0f,                             \
-                        AS_INT(tree.quad) == 0 ? GRAY : BLUE))
+    (drawCenteredSquare(centerOfQuadrant(quad, center, width), 0.9f * width / 2.0f,                             \
+                        AS_INT(tree.quad) == 0 ? BLACK : BLUE))
 
     if (isTreeNode(quadtree.NW)) {
         DRAW_QUAD(quadtree, NW);
@@ -347,9 +342,9 @@ void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, flo
     drawCenteredSquare(center, 2.0f, BLUE);
 }
 
-int maxQuads() { return pow(2, QUADTREE_MAX_DEPTH + 1); }
+int maxQuads(const QuadTree *quadtree) { return pow(2, quadtree->depth); }
 
-float miniumumQuadSize(float width) { return width / (maxQuads()); }
+float miniumumQuadSize(float width, const QuadTree *quadtree) { return width / (maxQuads(quadtree)); }
 
 typedef struct CellNeighbourhood {
     int nw;
@@ -483,6 +478,8 @@ static QuadTree *evolve(QuadTree *quadtree) {
 }
 
 QuadTree *evolveQuadtree(const QuadTree *quadtree) {
+    // TODO: Improve this by not recreating the empty each time - Possible store the quadtree in a 1 up date structure
+    // and work with that!
     QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
 
     QuadTree nw = treeNode(quadtree->depth, empty, empty, empty, AS_QUADTREE(quadtree->NW));

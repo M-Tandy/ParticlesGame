@@ -205,9 +205,7 @@ static QuadTree *newConstantQuadTree(int depth, int x) {
 }
 
 // We will set 0 to be the lowest depth (leafs)
-QuadTree *newEmptyQuadTree(int depth) {
-    return newConstantQuadTree(depth, 0);
-}
+QuadTree *newEmptyQuadTree(int depth) { return newConstantQuadTree(depth, 0); }
 
 static Vector2 centerOfQuadrant(Quadrant quadrant, Vector2 center, float width) {
     switch (quadrant) {
@@ -255,12 +253,58 @@ QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const Q
 }
 
 // Drawing
+
+// DRAWING
+static void drawInt(int i, int x, int y, float width, float height) {
+    drawCenteredSquare((Vector2){x, y}, width * 1.5f, i == 0 ? BLACK : WHITE);
+}
+
+static void drawFluid(FluidValue fluid, int x, int y, float width, float height) {
+    drawCenteredSquare((Vector2){x, y}, width * fluid.state / 10.0f, BLUE);
+}
+
+static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, float height);
+
+static void drawTree(QuadTree *quadtree, int x, int y, float width, float height) {
+    Vector2 center = centerOfQuadrant(NW, (Vector2){x, y}, width);
+    drawQuadrantValue(quadtree->NW, center.x, center.y, width / 2.0f, height / 2.0f);
+
+    center = centerOfQuadrant(NE, (Vector2){x, y}, width);
+    drawQuadrantValue(quadtree->NE, center.x, center.y, width / 2.0f, height / 2.0f);
+
+    center = centerOfQuadrant(SW, (Vector2){x, y}, width);
+    drawQuadrantValue(quadtree->SW, center.x, center.y, width / 2.0f, height / 2.0f);
+
+    center = centerOfQuadrant(SE, (Vector2){x, y}, width);
+    drawQuadrantValue(quadtree->SE, center.x, center.y, width / 2.0f, height / 2.0f);
+}
+
+static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, float height) {
+    switch (qvalue.type) {
+    case VAL_INT:
+        drawInt(AS_INT(qvalue), x, y, width, height);
+        break;
+    case VAL_FLUID:
+        drawFluid(AS_FLUID(qvalue), x, y, width, height);
+        break;
+    case VAL_TREE:
+        drawTree(AS_QUADTREE(qvalue), x, y, width, height);
+        break;
+    case VAL_EMPTY:
+        break;
+    }
+}
+
 void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera) {
+    drawTree(&quadtree, center.x, center.y, width/2.0f, width/2.0f);
+}
+
+void drawQuadTreeOld(QuadTree quadtree, Vector2 center, float width, Camera2D camera) {
 
 #define DRAW_QUAD(tree, quad)                                                                                          \
     (drawQuadTree(*AS_QUADTREE(tree.quad), centerOfQuadrant(quad, center, width / 2.0f), width / 2.0f, camera))
 #define DRAW_INT(tree, quad)                                                                                           \
-    (drawCenteredSquare(centerOfQuadrant(quad, center, width / 2.0f), 0.9f * width / 2.0f,                                    \
+    (drawCenteredSquare(centerOfQuadrant(quad, center, width / 2.0f), 0.9f * width / 2.0f,                             \
                         AS_INT(tree.quad) == 0 ? BLACK : BLUE))
 
     if (isTreeNode(quadtree.NW)) {
@@ -385,7 +429,7 @@ static QuadTree *evolveBaseCase(QuadTree *quadtree) {
     QuadTree *sw = AS_QUADTREE(quadtree->SW);
     QuadTree *se = AS_QUADTREE(quadtree->SE);
 
-    int (*f)(CellNeighbourhood n) = gravity;
+    int (*f)(CellNeighbourhood n) = gameOfLife;
 
     CellNeighbourhood n = fromQuadrantValues(nw->NW, nw->NE, ne->NW, nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW);
     int center_nw = f(n);
@@ -483,12 +527,12 @@ static QuadTree *evolve(QuadTree *quadtree) {
 QuadTree *evolveQuadtree(const QuadTree *quadtree) {
     // TODO: Improve this by not recreating the empty each time - Possible store the quadtree in a 1 up date structure
     // and work with that!
-    
+
     // Game of life
-    // QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
-    
+    QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
+
     // Testing
-    QuadTree *empty = newConstantQuadTree(quadtree->depth - 1, -1);
+    // QuadTree *empty = newConstantQuadTree(quadtree->depth - 1, -1);
 
     QuadTree nw = treeNode(quadtree->depth, empty, empty, empty, AS_QUADTREE(quadtree->NW));
     QuadTree ne = treeNode(quadtree->depth, empty, empty, AS_QUADTREE(quadtree->NE), empty);

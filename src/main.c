@@ -24,7 +24,7 @@ https://creativecommons.org/publicdomain/zero/1.0/
 #define WIDTH 1600
 #define HEIGHT 900
 #define CELLPOWER 6
-#define GRIDWIDTH 1024.0f
+#define GRIDWIDTH 2048.0f
 
 typedef enum {
     TITLE,

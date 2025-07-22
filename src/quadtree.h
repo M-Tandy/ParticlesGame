@@ -16,8 +16,12 @@ typedef enum {
     VAL_EMPTY,
 } ValueType;
 
+typedef enum {
+    FLUID_WATER,
+} FluidType;
+
 typedef struct FluidValue {
-    int type;
+    FluidType type;
     int state; // value from 0 to 10
 } FluidValue;
 

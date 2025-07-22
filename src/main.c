@@ -189,7 +189,8 @@ void updateSceneQuadTree() {
             QuadTree *newTree = NULL;
 
             if (button == MOUSE_BUTTON_LEFT) {
-                newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(1));
+                FluidValue newFluid = (FluidValue){FLUID_WATER, 16};
+                newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, FLUID_VALUE(newFluid));
             } else if (button == MOUSE_BUTTON_RIGHT) {
                 newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(0));
             }
@@ -208,8 +209,8 @@ void updateSceneQuadTree() {
         gameData.paused = !gameData.paused;
     }
 
-    if (IsKeyPressed(KEY_M)) {
-        gameData.mode = gameData.mode == ADD ? DELETE : ADD;
+    if (IsKeyPressed(KEY_F) && gameData.paused) {
+        gameData.quadtree = evolveQuadtree(gameData.quadtree);
     }
 
     if (!gameData.paused) {

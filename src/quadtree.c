@@ -1,4 +1,3 @@
-
 #include <raylib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +75,10 @@ static int hashQvalue(QuadrantValue qvalue) {
 
     case VAL_INT:
         return hash_6432shift(AS_INT(qvalue));
+    case VAL_FLUID: {
+        FluidValue fluid = AS_FLUID(qvalue);
+        return hash_6432shift(fluid.type + fluid.state);
+    }
     case VAL_TREE:
         return hash_ptr(AS_QUADTREE(qvalue));
     case VAL_EMPTY:
@@ -100,16 +103,26 @@ static bool compare(QuadrantValue left, QuadrantValue right) {
         return false;
     }
 
-    if (IS_QUADTREE(left)) {
+    switch (left.type) {
+    case VAL_INT:
+        return AS_INT(left) == AS_INT(right);
+    case VAL_FLUID: {
+        FluidValue leftFluid = AS_FLUID(left);
+        FluidValue rightFluid = AS_FLUID(right);
+        return leftFluid.type == rightFluid.type && leftFluid.state == rightFluid.state;
+    }
+    case VAL_TREE:
         // If the quadtrees have the same pointer, they are equal. This should work due to interning
         return AS_QUADTREE(left) == AS_QUADTREE(right);
-    } else {
-        return AS_INT(left) == AS_INT(right);
+    case VAL_EMPTY:
+        return true;
     }
 }
 
 // Flips an integer quadrant value between 0 and 1
 static QuadrantValue flip(QuadrantValue value) { return INT_VALUE((AS_INT(value) + 1) % 2); }
+
+static bool isEmpty(QuadrantValue qvalue) { return IS_INT(qvalue) && AS_INT(qvalue) == 0; }
 
 // QuadTrees
 
@@ -164,7 +177,7 @@ static QuadTree leafNode(int nw, int ne, int sw, int se) {
     return quadtree;
 }
 
-static bool isLeaf(QuadrantValue qvalue) { return IS_INT(qvalue); }
+static bool isLeaf(QuadrantValue qvalue) { return IS_INT(qvalue) || IS_FLUID(qvalue); }
 
 static QuadTree treeNode(int depth, const QuadTree *nw, const QuadTree *ne, const QuadTree *sw, const QuadTree *se) {
     QuadTree quadtree = (QuadTree){.depth = depth,
@@ -260,7 +273,7 @@ static void drawInt(int i, int x, int y, float width, float height) {
 }
 
 static void drawFluid(FluidValue fluid, int x, int y, float width, float height) {
-    drawCenteredSquare((Vector2){x, y}, width * fluid.state / 10.0f, BLUE);
+    drawCenteredSquare((Vector2){x, y}, width * fluid.state / 16.0f, BLUE);
 }
 
 static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, float height);
@@ -296,7 +309,7 @@ static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, f
 }
 
 void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera) {
-    drawTree(&quadtree, center.x, center.y, width/2.0f, width/2.0f);
+    drawTree(&quadtree, center.x, center.y, width / 2.0f, width / 2.0f);
 }
 
 void drawQuadTreeOld(QuadTree quadtree, Vector2 center, float width, Camera2D camera) {
@@ -371,29 +384,31 @@ float miniumumQuadSize(float width, const QuadTree *quadtree) { return width / (
 
 // Game of Life
 typedef struct CellNeighbourhood {
-    int nw;
-    int n;
-    int ne;
-    int w;
-    int c;
-    int e;
-    int sw;
-    int s;
-    int se;
+    QuadrantValue nw;
+    QuadrantValue n;
+    QuadrantValue ne;
+    QuadrantValue w;
+    QuadrantValue c;
+    QuadrantValue e;
+    QuadrantValue sw;
+    QuadrantValue s;
+    QuadrantValue se;
 } CellNeighbourhood;
 
 CellNeighbourhood fromQuadrantValues(QuadrantValue nw, QuadrantValue n, QuadrantValue ne, QuadrantValue w,
                                      QuadrantValue c, QuadrantValue e, QuadrantValue sw, QuadrantValue s,
                                      QuadrantValue se) {
-    return (CellNeighbourhood){AS_INT(nw), AS_INT(n),  AS_INT(ne), AS_INT(w), AS_INT(c),
-                               AS_INT(e),  AS_INT(sw), AS_INT(s),  AS_INT(se)};
+    return (CellNeighbourhood){nw, n, ne, w, c, e, sw, s, se};
 }
 
-static int surroundingSum(CellNeighbourhood n) { return n.nw + n.n + n.ne + n.w + n.e + n.sw + n.s + n.se; }
+static int surroundingSum(CellNeighbourhood n) {
+    return AS_INT(n.nw) + AS_INT(n.n) + AS_INT(n.ne) + AS_INT(n.w) + AS_INT(n.e) + AS_INT(n.sw) + AS_INT(n.s) +
+           AS_INT(n.se);
+}
 
 static int gameOfLife(CellNeighbourhood n) {
     int count = surroundingSum(n);
-    if (n.c == 0) {
+    if (AS_INT(n.c) == 0) {
         // Dead cell
         return count == 3;
     }
@@ -401,26 +416,153 @@ static int gameOfLife(CellNeighbourhood n) {
     return count == 2 || count == 3;
 }
 
-static int gravity(CellNeighbourhood n) {
-    if (n.c == 0) {
-        if (n.n == 1) {
-            return 1;
+static bool canAbsorb(QuadrantValue qvalue) {
+    bool isFluid = IS_FLUID(qvalue) && AS_FLUID(qvalue).state <= 16;
+    return isFluid || isEmpty(qvalue);
+}
+
+static bool canFlow(QuadrantValue qvalue) { return IS_FLUID(qvalue); }
+
+static bool hasLessLiquid(QuadrantValue source, QuadrantValue destination) {
+    return AS_FLUID(destination).state < AS_FLUID(source).state;
+}
+
+static QuadrantValue flowDown(QuadrantValue source, QuadrantValue destination) {
+    int flowAmount = AS_FLUID(destination).state - AS_FLUID(source).state;
+    FluidType type = AS_FLUID(destination).type;
+
+    FluidValue fvalue = (FluidValue){type, flowAmount};
+
+    return FLUID_VALUE(fvalue);
+}
+
+static QuadrantValue flowSidewaysTwice(QuadrantValue source) {
+    FluidValue fvalue = (FluidValue){AS_FLUID(source).type, AS_FLUID(source).state / 2};
+
+    return FLUID_VALUE(fvalue);
+}
+
+static QuadrantValue flowSideways(QuadrantValue source) {
+    FluidValue fvalue = (FluidValue){AS_FLUID(source).type, AS_FLUID(source).state};
+
+    return FLUID_VALUE(fvalue);
+}
+
+static QuadrantValue spread(CellNeighbourhood n) {
+    if (!IS_FLUID(n.c)) {
+        return n.c;
+    }
+
+    if (canAbsorb(n.s)) {
+        if (isEmpty(n.s)) {
+            // Fluid flows into empty spot.
+            return INT_VALUE(0);
         }
-        if ((n.w == 1 && n.sw != 0) || (n.e == 1 && n.se != 0)) {
-            return 1;
+
+        if (hasLessLiquid(n.c, n.s)) {
+            return flowDown(n.c, n.s);
         }
-    } else if (n.c == 1) {
-        if (n.s == 0) {
+    }
+    bool left = canAbsorb(n.w);
+    bool right = canAbsorb(n.e);
+
+    if (left && right) {
+        return flowSidewaysTwice(n.c);
+    }
+    if (left || right) {
+        return flowSideways(n.c);
+    }
+
+    return n.c;
+}
+
+static QuadrantValue flowFrom(QuadrantValue source, QuadrantValue destination) {
+    int flowAmount = 2 * AS_FLUID(destination).state - AS_FLUID(source).state;
+    FluidType type = AS_FLUID(destination).type;
+
+    FluidValue fvalue = (FluidValue){type, flowAmount};
+
+    return FLUID_VALUE(fvalue);
+}
+
+static QuadrantValue absorbSideways(QuadrantValue source) {
+    FluidValue fvalue = (FluidValue){AS_FLUID(source).type, AS_FLUID(source).state / 4};
+
+    return FLUID_VALUE(fvalue);
+}
+
+static QuadrantValue absorbSidewaysTwice(QuadrantValue left, QuadrantValue right) {
+    FluidValue fvalue = (FluidValue){AS_FLUID(left).type, AS_FLUID(left).state / 4 + AS_FLUID(right).state / 4};
+
+    return FLUID_VALUE(fvalue);
+}
+
+static QuadrantValue absorb(CellNeighbourhood n) {
+    if (canAbsorb(n.c)) {
+        if (IS_FLUID(n.n)){
+            if (isEmpty(n.c)) {
+                // Fluid falling into empty cell
+                return n.n;
+            }
+
+            if (hasLessLiquid(n.n, n.c)) {
+                return flowFrom(n.n, n.c);
+            }
+        }
+
+        bool left = canFlow(n.w);
+        bool right = canFlow(n.e);
+        if (left && right) {
+            return absorbSidewaysTwice(n.w, n.e);
+        }
+        if (left) {
+            return absorbSideways(n.w);
+        }
+        if (right) {
+            return absorbSideways(n.e);
+        }
+    }
+
+    return n.c;
+}
+
+static QuadrantValue fluid(CellNeighbourhood n) {
+    QuadrantValue afterSpread = spread(n);
+    if (compare(afterSpread, n.c)) {
+        return absorb(n);
+    }
+
+    return afterSpread;
+}
+
+static QuadrantValue identity(CellNeighbourhood n) {
+    return n.c;
+}
+
+static int sand(CellNeighbourhood n) {
+    if (AS_INT(n.c) == 1) {
+        if (AS_INT(n.s) == 0) {
             return 0;
         }
-        if (n.w == 0) {
+        if (AS_INT(n.sw) == 0 && AS_INT(n.w) == 0) {
             return 0;
         }
-        if (n.e == 0) {
+        if (AS_INT(n.se) == 0 && AS_INT(n.e) == 0) {
             return 0;
         }
     }
-    return n.c;
+    if (AS_INT(n.c) == 0) {
+        if (AS_INT(n.n) == 1) {
+            return 1;
+        }
+        if (AS_INT(n.nw) == 1 && AS_INT(n.w) != 0) {
+            return 1;
+        }
+        if (AS_INT(n.ne) == 1 && AS_INT(n.e) != 0) {
+            return 1;
+        }
+    }
+    return AS_INT(n.c);
 }
 
 static QuadTree *evolveBaseCase(QuadTree *quadtree) {
@@ -429,26 +571,25 @@ static QuadTree *evolveBaseCase(QuadTree *quadtree) {
     QuadTree *sw = AS_QUADTREE(quadtree->SW);
     QuadTree *se = AS_QUADTREE(quadtree->SE);
 
-    int (*f)(CellNeighbourhood n) = gameOfLife;
+    QuadrantValue (*f)(CellNeighbourhood n) = fluid;
 
     CellNeighbourhood n = fromQuadrantValues(nw->NW, nw->NE, ne->NW, nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW);
-    int center_nw = f(n);
+    QuadrantValue center_nw = f(n);
 
     n = fromQuadrantValues(nw->NE, ne->NW, ne->NE, nw->SE, ne->SW, ne->SE, sw->NE, se->NW, se->NE);
-    int center_ne = f(n);
+    QuadrantValue center_ne = f(n);
 
     n = fromQuadrantValues(nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW, sw->SW, sw->SE, se->SW);
-    int center_sw = f(n);
+    QuadrantValue center_sw = f(n);
 
     n = fromQuadrantValues(nw->SE, ne->SW, ne->SE, sw->NE, se->NW, se->NE, sw->SE, se->SW, se->SE);
-    int center_se = f(n);
+    QuadrantValue center_se = f(n);
 
-    QuadTree result = leafNode(center_nw, center_ne, center_sw, center_se);
+    QuadTree *result = node(0, center_nw, center_ne, center_sw, center_se);
 
-    QuadTree *interned = copyQuadTree(&result);
-    quadtree->result = interned;
+    quadtree->result = result;
 
-    return copyQuadTree(&result);
+    return result;
 }
 
 // Returns a quadtree with a depth 1 lower than the given tree
@@ -529,7 +670,7 @@ QuadTree *evolveQuadtree(const QuadTree *quadtree) {
     // and work with that!
 
     // Game of life
-    QuadTree *empty = newEmptyQuadTree(quadtree->depth - 1);
+    QuadTree *empty = newConstantQuadTree(quadtree->depth - 1, -1);
 
     // Testing
     // QuadTree *empty = newConstantQuadTree(quadtree->depth - 1, -1);

@@ -23,8 +23,9 @@ https://creativecommons.org/publicdomain/zero/1.0/
 
 #define WIDTH 1600
 #define HEIGHT 900
-#define CELLPOWER 6
-#define GRIDWIDTH 2048.0f
+#define CELLPOWER 5
+#define GRIDWIDTH 2048.0f / 2
+#define UPDATE_RATE 60
 
 typedef enum {
     TITLE,
@@ -167,7 +168,7 @@ void updateSceneGrid() {
         }
     }
 
-    if (gameData.timer > 0.5f) {
+    if (gameData.timer > 1.0f/(float)UPDATE_RATE) {
         updateGrids(&gameData.grid1, &gameData.grid2);
 
         // Swapping grids
@@ -214,7 +215,7 @@ void updateSceneQuadTree() {
     }
 
     if (!gameData.paused) {
-        if (gameData.timer > 0.1f) {
+        if (gameData.timer > 1.0f / (float)UPDATE_RATE) {
             gameData.quadtree = evolveQuadtree(gameData.quadtree);
 
             gameData.timer = 0.0f;

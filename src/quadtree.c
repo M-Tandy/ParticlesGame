@@ -83,6 +83,10 @@ static int hashQvalue(QuadrantValue qvalue) {
     }
     case VAL_TREE:
         return hash_ptr(AS_QUADTREE(qvalue));
+    case VAL_OCCUPATION: {
+        OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
+        return hash_6432shift(occ.nw + occ.n + occ.ne + occ.w + occ.e + occ.sw + occ.s + occ.se);
+    }
     case VAL_EMPTY:
         // Should never really be reached. We should not have an empty node in the tree
         return 0;
@@ -98,13 +102,31 @@ static int hashQuadTree(const QuadTree *quadtree) {
 }
 
 // FluidValues's
-static FluidValue newFluidValue(FluidType type, int state) {
-    return (FluidValue){
-        .type = type, .state = state
-    };
-}
+static FluidValue newFluidValue(FluidType type, int state) { return (FluidValue){.type = type, .state = state}; }
 
 // QuadrantValues's
+static void toString(QuadrantValue qvalue, char *out) {
+    switch (qvalue.type) {
+
+    case VAL_INT:
+        sprintf(out, "[%d]", AS_INT(qvalue));
+        break;
+    case VAL_FLUID:
+        sprintf(out, "[Fluid (Water, %d)]", AS_FLUID(qvalue).state);
+        break;
+    case VAL_TREE:
+        sprintf(out, "[Tree %p]", AS_QUADTREE(qvalue));
+        break;
+    case VAL_OCCUPATION: {
+        OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
+        sprintf(out, "[OccupationNumber (nw: %d, n: %d, ne: %d, w: %d, e: %d, sw: %d, s: %d, se: %d)]", occ.nw, occ.n,
+                occ.ne, occ.w, occ.e, occ.sw, occ.s, occ.se);
+    } break;
+    case VAL_EMPTY:
+        sprintf(out, "[EMPTY]");
+        break;
+    }
+}
 
 // Compare two `QuadrantValue`'s.
 static bool compare(QuadrantValue left, QuadrantValue right) {
@@ -123,6 +145,13 @@ static bool compare(QuadrantValue left, QuadrantValue right) {
     case VAL_TREE:
         // If the quadtrees have the same pointer, they are equal. This should work due to interning
         return AS_QUADTREE(left) == AS_QUADTREE(right);
+    case VAL_OCCUPATION: {
+        OccupationNumber leftOcc = AS_OCCUPATION_NUMBER(left);
+        OccupationNumber rightOcc = AS_OCCUPATION_NUMBER(right);
+        return leftOcc.nw == rightOcc.nw && leftOcc.n == rightOcc.n && leftOcc.ne == rightOcc.ne &&
+               leftOcc.w == rightOcc.w && leftOcc.e == rightOcc.e && leftOcc.sw == rightOcc.sw &&
+               leftOcc.s == rightOcc.s && leftOcc.se == rightOcc.se;
+    }
     case VAL_EMPTY:
         return true;
     }
@@ -314,8 +343,11 @@ static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, f
     case VAL_TREE:
         drawTree(AS_QUADTREE(qvalue), x, y, width, height);
         break;
-    case VAL_EMPTY:
-        break;
+    default: {
+        char *asString;
+        toString(qvalue, asString);
+        LogMessage(LOG_ERROR, "Encountered undrawable quadrant value: %s.\n", asString);
+    }
     }
 }
 
@@ -396,8 +428,8 @@ float miniumumQuadSize(float width, const QuadTree *quadtree) { return width / (
 // Game of Life
 
 static CellNeighbourhood fromQuadrantValues(QuadrantValue nw, QuadrantValue n, QuadrantValue ne, QuadrantValue w,
-                                     QuadrantValue c, QuadrantValue e, QuadrantValue sw, QuadrantValue s,
-                                     QuadrantValue se) {
+                                            QuadrantValue c, QuadrantValue e, QuadrantValue sw, QuadrantValue s,
+                                            QuadrantValue se) {
     return (CellNeighbourhood){nw, n, ne, w, c, e, sw, s, se};
 }
 

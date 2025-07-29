@@ -9,12 +9,16 @@
 
 typedef struct QuadTree QuadTree;
 
-typedef enum {
-    VAL_INT,
-    VAL_FLUID,
-    VAL_TREE,
-    VAL_EMPTY,
-} ValueType;
+typedef struct OccupationNumber {
+    int nw;
+    int n;
+    int ne;
+    int w;
+    int e;
+    int sw;
+    int s;
+    int se;
+} OccupationNumber;
 
 typedef enum {
     FLUID_WATER,
@@ -25,27 +29,39 @@ typedef struct FluidValue {
     int state; // value from 0 to 10
 } FluidValue;
 
+typedef enum {
+    VAL_INT,
+    VAL_FLUID,
+    VAL_TREE,
+    VAL_OCCUPATION,
+    VAL_EMPTY,
+} ValueType;
+
 typedef struct QuadrantValue {
     ValueType type;
     union {
         int integer;
         FluidValue fluid;
         QuadTree *quadtree;
+        OccupationNumber occupationNumber;
     } as;
 } QuadrantValue;
 
 #define IS_INT(qvalue) (((qvalue).type) == VAL_INT)
 #define IS_FLUID(qvalue) (((qvalue).type) == VAL_FLUID)
 #define IS_QUADTREE(qvalue) (((qvalue).type) == VAL_TREE)
+#define IS_OCCUPATION_NUMBER (((qvalue).type) == VAL_OCCUPATION)
 #define IS_EMPTY(qvalue) (((qvalue).type) == VAL_EMPTY)
 
 #define AS_INT(qvalue) ((qvalue).as.integer)
 #define AS_FLUID(qvalue) ((qvalue).as.fluid)
+#define AS_OCCUPATION_NUMBER(qvalue) ((qvalue).as.occupationNumber)
 #define AS_QUADTREE(qvalue) ((qvalue).as.quadtree)
 
 #define INT_VALUE(value) ((QuadrantValue){VAL_INT, {.integer = value}})
 #define FLUID_VALUE(fvalue) ((QuadrantValue){VAL_FLUID, {.fluid = (FluidValue)fvalue}})
 #define QUADTREE_VALUE(qtree) ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)qtree}})
+#define OCCUPATION_NUMBER_VALUE(occ) ((OccupationNumber){VAL_OCCUPATION, {.occupationNumber = occ}})
 #define EMPTY_VALUE ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)NULL}})
 
 typedef struct CellNeighbourhood {
@@ -87,10 +103,8 @@ QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const Q
 void drawQuadTree(QuadTree quadtree, Vector2 center, float width, Camera2D camera);
 void drawQuadFromPosition(Vector2 point, QuadTree *quadtree, Vector2 center, float width);
 
-float miniumumQuadSize(float width, const QuadTree *quadtree);
-
-QuadTree *evolveQuadtree(const QuadTree *quadtree);
 int maxQuads(const QuadTree *quadtree);
+float miniumumQuadSize(float width, const QuadTree *quadtree);
 
 QuadTree *evolveQuadtree(const QuadTree *quadtree);
 #endif // ptest_quadtree_h

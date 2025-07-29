@@ -180,7 +180,7 @@ void updateSceneQuadTree() {
             QuadTree *newTree = NULL;
 
             if (button == MOUSE_BUTTON_LEFT) {
-                FluidValue newFluid = (FluidValue){FLUID_WATER, 16};
+                FluidValue newFluid = (FluidValue){FLUID_WATER, 64};
                 newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, FLUID_VALUE(newFluid));
             } else if (button == MOUSE_BUTTON_RIGHT) {
                 newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(0));

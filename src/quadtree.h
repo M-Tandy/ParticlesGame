@@ -48,6 +48,18 @@ typedef struct QuadrantValue {
 #define QUADTREE_VALUE(qtree) ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)qtree}})
 #define EMPTY_VALUE ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)NULL}})
 
+typedef struct CellNeighbourhood {
+    QuadrantValue nw;
+    QuadrantValue n;
+    QuadrantValue ne;
+    QuadrantValue w;
+    QuadrantValue c;
+    QuadrantValue e;
+    QuadrantValue sw;
+    QuadrantValue s;
+    QuadrantValue se;
+} CellNeighbourhood;
+
 typedef struct QuadTree {
     int depth;
 

@@ -5,6 +5,7 @@
 #include "common.h"
 #include "debug.h"
 #include "draw.h"
+#include "fluid.h"
 #include "hash.h"
 #include "memory.h"
 #include "quadtree.h"
@@ -393,19 +394,8 @@ int maxQuads(const QuadTree *quadtree) { return pow(2, quadtree->depth); }
 float miniumumQuadSize(float width, const QuadTree *quadtree) { return width / (maxQuads(quadtree)); }
 
 // Game of Life
-typedef struct CellNeighbourhood {
-    QuadrantValue nw;
-    QuadrantValue n;
-    QuadrantValue ne;
-    QuadrantValue w;
-    QuadrantValue c;
-    QuadrantValue e;
-    QuadrantValue sw;
-    QuadrantValue s;
-    QuadrantValue se;
-} CellNeighbourhood;
 
-CellNeighbourhood fromQuadrantValues(QuadrantValue nw, QuadrantValue n, QuadrantValue ne, QuadrantValue w,
+static CellNeighbourhood fromQuadrantValues(QuadrantValue nw, QuadrantValue n, QuadrantValue ne, QuadrantValue w,
                                      QuadrantValue c, QuadrantValue e, QuadrantValue sw, QuadrantValue s,
                                      QuadrantValue se) {
     return (CellNeighbourhood){nw, n, ne, w, c, e, sw, s, se};
@@ -425,228 +415,6 @@ static int gameOfLife(CellNeighbourhood n) {
     // Live cell
     return count == 2 || count == 3;
 }
-
-static bool canAbsorb(QuadrantValue qvalue) {
-    bool isFillableFluid = IS_FLUID(qvalue) && AS_FLUID(qvalue).state < 16;
-    return isFillableFluid || isEmpty(qvalue);
-}
-
-static bool canFlow(QuadrantValue qvalue) { return IS_FLUID(qvalue); }
-
-// Returns true if `destination` has less fluid than `source`.
-// <!> Assumes two fluid values as input
-static bool hasLessLiquid(QuadrantValue source, QuadrantValue destination) {
-    if (!IS_FLUID(destination)) {
-        return false;
-    }
-
-    return AS_FLUID(destination).state < AS_FLUID(source).state;
-}
-
-// Whether or not the fluid in `source` will fall into `destination`
-static bool willFall(QuadrantValue source, QuadrantValue destination) {
-    if (isEmpty(destination)) {
-        return true;
-    }
-    if (!IS_FLUID(destination)) {
-        return false;
-    }
-    return AS_FLUID(destination).state < 16;
-}
-
-// Returns the fluid value for the source after flowing to destination
-static QuadrantValue spreadFrom(QuadrantValue source, QuadrantValue destination) {
-    FluidValue sourceFluid = AS_FLUID(source);
-    FluidValue destFluid = AS_FLUID(destination);
-
-    int maxFlowable = 16 - destFluid.state;
-
-    int newAmount = sourceFluid.state < maxFlowable ? 0 : sourceFluid.state - maxFlowable;
-    if (newAmount == 0) {
-        return INT_VALUE(0);
-    }
-    FluidType type = AS_FLUID(destination).type;
-
-    return FLUID_VALUE(newFluidValue(type, newAmount));
-}
-
-static QuadrantValue doubleSidewaysFlow(QuadrantValue source) {
-    int newState = AS_FLUID(source).state / 2;
-    if (newState == 0) {
-        return INT_VALUE(0);
-    }
-
-    FluidType type = AS_FLUID(source).type;
-    return FLUID_VALUE(newFluidValue(type, newState));
-}
-
-static int singleSidewaysFlow(QuadrantValue source, QuadrantValue destination) {
-    FluidValue sourceFluid = AS_FLUID(source);
-
-    int difference;
-    if (IS_FLUID(destination)) {
-        difference = sourceFluid.state - AS_FLUID(destination).state;
-    } else if (isEmpty(destination)) {
-        difference = sourceFluid.state;
-    } else {
-        return 0;
-    }
-
-    if (difference > 0) {
-        return difference / 2;
-    }
-    return 0;
-}
-
-static int singleSidewaysAbsorb(QuadrantValue source, QuadrantValue destination) {
-    if (!IS_FLUID(source)) {
-        return 0;
-    }
-
-    int destState = IS_FLUID(destination) ? AS_FLUID(destination).state : 0;
-    int difference = AS_FLUID(source).state - destState;
-
-    if (difference > 0) {
-        return difference / 2;
-    }
-    return 0;
-}
-
-static QuadrantValue spread(CellNeighbourhood n) {
-    if (!IS_FLUID(n.c)) {
-        return n.c;
-    }
-
-    if (canAbsorb(n.s)) {
-        if (isEmpty(n.s)) {
-            // Fluid flows into empty spot.
-            return INT_VALUE(0);
-        }
-
-        if (willFall(n.c, n.s)) {
-            return spreadFrom(n.c, n.s);
-        }
-    }
-
-    if (AS_FLUID(n.c).state == 1) {
-        return n.c;
-    }
-
-    int leftLoss = canAbsorb(n.w) ? singleSidewaysFlow(n.c, n.w) : 0;
-    int rightLoss = canAbsorb(n.e) ? singleSidewaysFlow(n.c, n.e) : 0;
-    int newState = AS_FLUID(n.c).state - leftLoss - rightLoss;
-
-    if (newState == 0) {
-        return INT_VALUE(0);
-    } else {
-        return FLUID_VALUE(newFluidValue(AS_FLUID(n.c).type, newState));
-    }
-}
-
-// Returns the fluid value for the destination after flowing from the source
-static QuadrantValue flowFrom(QuadrantValue source, QuadrantValue destination) {
-    FluidValue sourceFluid = AS_FLUID(source);
-    FluidValue destFluid = AS_FLUID(destination);
-
-    int maxFlowable = 16 - destFluid.state;
-
-    int flowAmount = sourceFluid.state < maxFlowable ? sourceFluid.state : maxFlowable;
-    FluidType type = AS_FLUID(destination).type;
-
-    return FLUID_VALUE(newFluidValue(type, destFluid.state + flowAmount));
-}
-
-static QuadrantValue absorbSideways(QuadrantValue destination) {
-    FluidValue fvalue;
-    if (IS_FLUID(destination)) {
-        fvalue = newFluidValue(AS_FLUID(destination).type, AS_FLUID(destination).state + 2);
-    } else {
-        fvalue = newFluidValue(FLUID_WATER, 2);
-    }
-
-    return FLUID_VALUE(fvalue);
-}
-
-static QuadrantValue absorbSidewaysTwice(QuadrantValue destination) {
-    FluidValue fvalue;
-    if (IS_FLUID(destination)) {
-        fvalue = newFluidValue(AS_FLUID(destination).type, AS_FLUID(destination).state + 4);
-    } else {
-        fvalue = newFluidValue(FLUID_WATER, 4);
-    }
-
-    return FLUID_VALUE(fvalue);
-}
-
-static QuadrantValue absorb(CellNeighbourhood n) {
-    if (canAbsorb(n.c)) {
-        // Northern cell - If fluid exists in the northern cell, it will try to fill up the lower cell
-        if (IS_FLUID(n.n)) {
-            if (isEmpty(n.c)) {
-                // Fluid falling into empty cell
-                return n.n;
-            }
-
-            if (willFall(n.n, n.c)) {
-                return flowFrom(n.n, n.c);
-            }
-        }
-
-        int leftGain = IS_FLUID(n.w) && willFall(n.w, n.sw) == false ? singleSidewaysAbsorb(n.w, n.c) : 0;
-        int rightGain = IS_FLUID(n.e) && willFall(n.e, n.se) == false ? singleSidewaysAbsorb(n.e, n.c) : 0;
-        int gain = leftGain + rightGain;
-
-        FluidValue fvalue;
-        if (IS_FLUID(n.c)) {
-            fvalue = newFluidValue(AS_FLUID(n.c).type, AS_FLUID(n.c).state + gain);
-        } else {
-            // Empty value.
-            if (gain == 0) {
-                return INT_VALUE(0);
-            }
-            fvalue = newFluidValue(FLUID_WATER, gain);
-        }
-        return FLUID_VALUE(fvalue);
-    }
-
-    return n.c;
-}
-
-static QuadrantValue fluid(CellNeighbourhood n) {
-    if (isEmpty(n.c)) {
-        return absorb(n);
-    }
-    if (IS_FLUID(n.c)) {
-        QuadrantValue afterSpread = spread(n);
-        QuadrantValue afterAbsorb = absorb(n);
-
-        if (isEmpty(afterSpread)) {
-            if (AS_FLUID(afterAbsorb).state == AS_FLUID(n.c).state) {
-                return INT_VALUE(0);
-            }
-
-            int amount = AS_FLUID(afterAbsorb).state - AS_FLUID(n.c).state;
-            if (amount < 0)
-                LogMessage(LOG_ERROR, "1: Fluid amount negative! %d", amount);
-
-            FluidValue result = newFluidValue(AS_FLUID(n.c).type, amount);
-
-            return FLUID_VALUE(result);
-        }
-
-        int amount = AS_FLUID(afterSpread).state + AS_FLUID(afterAbsorb).state - AS_FLUID(n.c).state;
-        if (amount < 0)
-            LogMessage(LOG_ERROR, "2: Fluid amount negative! (%d + %d - %d = %d)", AS_FLUID(afterSpread).state,
-                       AS_FLUID(afterAbsorb).state, AS_FLUID(n.c).state, amount);
-        FluidValue combined = newFluidValue(AS_FLUID(afterSpread).type, amount);
-
-        return FLUID_VALUE(combined);
-    }
-
-    return n.c;
-}
-
-static QuadrantValue identity(CellNeighbourhood n) { return n.c; }
 
 static int sand(CellNeighbourhood n) {
     if (AS_INT(n.c) == 1) {
@@ -680,7 +448,7 @@ static QuadTree *evolveBaseCase(QuadTree *quadtree) {
     QuadTree *sw = AS_QUADTREE(quadtree->SW);
     QuadTree *se = AS_QUADTREE(quadtree->SE);
 
-    QuadrantValue (*f)(CellNeighbourhood n) = fluid;
+    QuadrantValue (*f)(CellNeighbourhood n) = fluidNeighbourhood;
 
     CellNeighbourhood n = fromQuadrantValues(nw->NW, nw->NE, ne->NW, nw->SW, nw->SE, ne->SW, sw->NW, sw->NE, se->NW);
     QuadrantValue center_nw = f(n);

@@ -16,6 +16,7 @@
 #define CELLPOWER 5
 #define GRIDWIDTH 2048.0f / 2
 #define UPDATE_RATE 60
+#define FLUID_AMOUNT 64
 
 typedef enum {
     TITLE,
@@ -180,7 +181,7 @@ void updateSceneQuadTree() {
             QuadTree *newTree = NULL;
 
             if (button == MOUSE_BUTTON_LEFT) {
-                FluidValue newFluid = (FluidValue){FLUID_WATER, 64};
+                FluidValue newFluid = (FluidValue){FLUID_WATER, FLUID_AMOUNT};
                 newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, FLUID_VALUE(newFluid));
             } else if (button == MOUSE_BUTTON_RIGHT) {
                 newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(0));

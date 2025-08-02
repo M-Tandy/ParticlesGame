@@ -105,25 +105,26 @@ static int hashQuadTree(const QuadTree *quadtree) {
 static FluidValue newFluidValue(FluidType type, int state) { return (FluidValue){.type = type, .state = state}; }
 
 // QuadrantValues's
-static void toString(QuadrantValue qvalue, char *out) {
+static void logQuadrantValue(TraceLogLevel level, const char *message, QuadrantValue qvalue) {
     switch (qvalue.type) {
 
     case VAL_INT:
-        sprintf(out, "[%d]", AS_INT(qvalue));
+        LogMessage(level, message, "[%d]", AS_INT(qvalue));
         break;
     case VAL_FLUID:
-        sprintf(out, "[Fluid (Water, %d)]", AS_FLUID(qvalue).state);
+        LogMessage(level, message, "[Fluid (Water, %d)]", AS_FLUID(qvalue).state);
         break;
     case VAL_TREE:
-        sprintf(out, "[Tree %p]", AS_QUADTREE(qvalue));
+        LogMessage(level, message, "[Tree %p]", AS_QUADTREE(qvalue));
         break;
     case VAL_OCCUPATION: {
         OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
-        sprintf(out, "[OccupationNumber (nw: %d, n: %d, ne: %d, w: %d, e: %d, sw: %d, s: %d, se: %d)]", occ.nw, occ.n,
-                occ.ne, occ.w, occ.e, occ.sw, occ.s, occ.se);
+        LogMessage(level, message,
+                   "[OccupationNumber (nw: %d, n: %d, ne: %d, w: %d, c: %d, e: %d, sw: %d, s: %d, se: %d)]", occ.nw,
+                   occ.n, occ.ne, occ.w, occ.c, occ.e, occ.sw, occ.s, occ.se);
     } break;
     case VAL_EMPTY:
-        sprintf(out, "[EMPTY]");
+        LogMessage(level, message, "[EMPTY]");
         break;
     }
 }
@@ -149,8 +150,8 @@ static bool compare(QuadrantValue left, QuadrantValue right) {
         OccupationNumber leftOcc = AS_OCCUPATION_NUMBER(left);
         OccupationNumber rightOcc = AS_OCCUPATION_NUMBER(right);
         return leftOcc.nw == rightOcc.nw && leftOcc.n == rightOcc.n && leftOcc.ne == rightOcc.ne &&
-               leftOcc.w == rightOcc.w && leftOcc.e == rightOcc.e && leftOcc.sw == rightOcc.sw &&
-               leftOcc.s == rightOcc.s && leftOcc.se == rightOcc.se;
+               leftOcc.w == rightOcc.w && leftOcc.c == rightOcc.c && leftOcc.e == rightOcc.e &&
+               leftOcc.sw == rightOcc.sw && leftOcc.s == rightOcc.s && leftOcc.se == rightOcc.se;
     }
     case VAL_EMPTY:
         return true;
@@ -307,7 +308,9 @@ QuadTree *setPointInQuadTree(Vector2 point, Vector2 center, float width, const Q
 
 // DRAWING
 static void drawInt(int i, int x, int y, float width, float height) {
-    drawCenteredSquare((Vector2){x, y}, width * 1.5f, i == 0 ? BLACK : WHITE);
+    if (i != 0) {
+        drawCenteredSquare((Vector2){x, y}, width * 1.5f, i == 0 ? BLACK : WHITE);
+    }
 }
 
 static void drawFluid(FluidValue fluid, int x, int y, float width, float height) {
@@ -343,10 +346,24 @@ static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, f
     case VAL_TREE:
         drawTree(AS_QUADTREE(qvalue), x, y, width, height);
         break;
+    case VAL_OCCUPATION: {
+        OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
+        int textSize = 8;
+        int textShift = 8;
+        int margin = 4;
+        DrawText(TextFormat("%d", occ.nw), x - margin - textShift, y - margin - textShift, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.n), x - margin, y - margin - textShift, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.ne), x - margin + textShift, y - margin - textShift, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.w), x - margin - textShift, y - margin, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.c), x - margin, y - margin, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.e), x - margin + textShift, y - margin, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.sw), x - margin - textShift, y - margin + textShift, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.s), x - margin, y - margin + textShift, textSize, GREEN);
+        DrawText(TextFormat("%d", occ.se), x - margin + textShift, y - margin + textShift, textSize, GREEN);
+        break;
+    }
     default: {
-        char *asString;
-        toString(qvalue, asString);
-        LogMessage(LOG_ERROR, "Encountered undrawable quadrant value: %s.\n", asString);
+        logQuadrantValue(LOG_ERROR, "Encountered undrawable quadrant value: %s.\n", qvalue);
     }
     }
 }
@@ -597,5 +614,16 @@ QuadTree *evolveQuadtree(const QuadTree *quadtree) {
     // AS_QUADTREE(wrapper->SW)->NE = quadtree->SW;
     // AS_QUADTREE(wrapper->SE)->NW = quadtree->SE;
 
+    QuadTree *temp = evolve(&wrapped);
+
+    // We do it twice because the fluid process is two stage.
+    empty = newConstantQuadTree(quadtree->depth - 1, -1);
+
+    nw = treeNode(quadtree->depth, empty, empty, empty, AS_QUADTREE(temp->NW));
+    ne = treeNode(quadtree->depth, empty, empty, AS_QUADTREE(temp->NE), empty);
+    sw = treeNode(quadtree->depth, empty, AS_QUADTREE(temp->SW), empty, empty);
+    se = treeNode(quadtree->depth, AS_QUADTREE(temp->SE), empty, empty, empty);
+
+    wrapped = treeNode(quadtree->depth + 1, &nw, &ne, &sw, &se);
     return evolve(&wrapped);
 }

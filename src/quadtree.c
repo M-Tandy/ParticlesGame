@@ -84,7 +84,7 @@ static int hashQvalue(QuadrantValue qvalue) {
     case VAL_TREE:
         return hash_ptr(AS_QUADTREE(qvalue));
     case VAL_OCCUPATION: {
-        OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
+        QOccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
         return hash_6432shift(occ.nw + occ.n + occ.ne + occ.w + occ.e + occ.sw + occ.s + occ.se);
     }
     case VAL_EMPTY:
@@ -118,9 +118,9 @@ static void logQuadrantValue(TraceLogLevel level, const char *message, QuadrantV
         LogMessage(level, message, "[Tree %p]", AS_QUADTREE(qvalue));
         break;
     case VAL_OCCUPATION: {
-        OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
+        QOccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
         LogMessage(level, message,
-                   "[OccupationNumber (nw: %d, n: %d, ne: %d, w: %d, c: %d, e: %d, sw: %d, s: %d, se: %d)]", occ.nw,
+                   "[QOccupationNumber (nw: %d, n: %d, ne: %d, w: %d, c: %d, e: %d, sw: %d, s: %d, se: %d)]", occ.nw,
                    occ.n, occ.ne, occ.w, occ.c, occ.e, occ.sw, occ.s, occ.se);
     } break;
     case VAL_EMPTY:
@@ -147,8 +147,8 @@ static bool compare(QuadrantValue left, QuadrantValue right) {
         // If the quadtrees have the same pointer, they are equal. This should work due to interning
         return AS_QUADTREE(left) == AS_QUADTREE(right);
     case VAL_OCCUPATION: {
-        OccupationNumber leftOcc = AS_OCCUPATION_NUMBER(left);
-        OccupationNumber rightOcc = AS_OCCUPATION_NUMBER(right);
+        QOccupationNumber leftOcc = AS_OCCUPATION_NUMBER(left);
+        QOccupationNumber rightOcc = AS_OCCUPATION_NUMBER(right);
         return leftOcc.nw == rightOcc.nw && leftOcc.n == rightOcc.n && leftOcc.ne == rightOcc.ne &&
                leftOcc.w == rightOcc.w && leftOcc.c == rightOcc.c && leftOcc.e == rightOcc.e &&
                leftOcc.sw == rightOcc.sw && leftOcc.s == rightOcc.s && leftOcc.se == rightOcc.se;
@@ -347,7 +347,7 @@ static void drawQuadrantValue(QuadrantValue qvalue, int x, int y, float width, f
         drawTree(AS_QUADTREE(qvalue), x, y, width, height);
         break;
     case VAL_OCCUPATION: {
-        OccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
+        QOccupationNumber occ = AS_OCCUPATION_NUMBER(qvalue);
         int textSize = 8;
         int textShift = 8;
         int margin = 4;

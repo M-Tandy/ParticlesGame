@@ -1,9 +1,10 @@
 #include <stdlib.h>
+#include <time.h>
 
-#include "cell.h"
 #include "common.h"
 #include "debug.h"
 #include "draw.h"
+#include "grid.h"
 #include "quadtree.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -17,6 +18,8 @@
 #define GRIDWIDTH 2048.0f / 2
 #define UPDATE_RATE 60
 #define FLUID_AMOUNT 64
+
+#define CAMERA_SPEED 8
 
 typedef enum {
     TITLE,
@@ -34,6 +37,8 @@ typedef struct GameData {
     int gridx;
     int gridy;
     int gridScale;
+    int gridWidth;
+    RenderTexture2D gridTexture;
 
     QuadTree *quadtree;
 
@@ -49,6 +54,7 @@ typedef struct GameData {
 } GameData;
 
 static GameData gameData;
+static bool logFlag;
 
 Table quadtrees;
 
@@ -74,11 +80,16 @@ void toQuadTree() { gameData.scene = QUADTREE; }
 void initGameData() {
     gameData.scene = TITLE;
 
-    initGrid(&gameData.grid1, 32, 32, "Grid 1");
-    initGrid(&gameData.grid2, 32, 32, "Grid 2");
-    gameData.gridScale = 24;
-    gameData.gridx = -gridDrawWidth(gameData.gridScale, gameData.grid1) / 2;
-    gameData.gridy = -gridDrawHeight(gameData.gridScale, gameData.grid1) / 2;
+    int width = 256;
+    int renderWidth = 512;
+    initGrid(&gameData.grid1, width, width);
+    initGrid(&gameData.grid2, width, width);
+    gameData.gridScale = renderWidth / width;
+    gameData.gridWidth = width;
+
+    gameData.gridx = -gameData.gridScale * width / 2;
+    gameData.gridy = -gameData.gridScale * width / 2;
+    gameData.gridTexture = LoadRenderTexture(width, width);
 
     initQuadTable();
     gameData.quadtree = newEmptyQuadTree(CELLPOWER);
@@ -94,11 +105,14 @@ void initGameData() {
         newButton((Rectangle){WIDTH / 2 - 200 / 2 + 200, HEIGHT / 2, 200, 100}, true, "QuadTree", 32, toQuadTree);
 
     gameData.paused = true;
+
+    bool logFlag = false;
 }
 
 void freeGameData() {
     freeGrid(&gameData.grid1);
     freeGrid(&gameData.grid2);
+    UnloadRenderTexture(gameData.gridTexture);
 }
 
 void updateSceneTitle() {
@@ -110,16 +124,16 @@ void updateSceneTitle() {
 
 void cameraUpdate() {
     if (IsKeyDown(KEY_W)) {
-        gameData.camera.offset.y += 2 * gameData.camera.zoom;
+        gameData.camera.offset.y += CAMERA_SPEED * gameData.camera.zoom;
     }
     if (IsKeyDown(KEY_S)) {
-        gameData.camera.offset.y -= 2 * gameData.camera.zoom;
+        gameData.camera.offset.y -= CAMERA_SPEED * gameData.camera.zoom;
     }
     if (IsKeyDown(KEY_D)) {
-        gameData.camera.offset.x -= 2 * gameData.camera.zoom;
+        gameData.camera.offset.x -= CAMERA_SPEED * gameData.camera.zoom;
     }
     if (IsKeyDown(KEY_A)) {
-        gameData.camera.offset.x += 2 * gameData.camera.zoom;
+        gameData.camera.offset.x += CAMERA_SPEED * gameData.camera.zoom;
     }
 
     if (IsKeyPressed(KEY_O)) {
@@ -145,22 +159,57 @@ void cameraUpdate() {
 }
 
 void updateSceneGrid() {
-    Vector2 mousePos = GetMousePosition();
-    Vector2 worldPos = GetScreenToWorld2D(mousePos, gameData.camera);
-
     cameraUpdate();
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        BoundingBox gridbbox = gridBoundingBox(gameData.gridx, gameData.gridy, gameData.gridScale, gameData.grid1);
-        if (IN_BBOX(worldPos, gridbbox)) {
-            Cell *gridCell = positionToGridCell(worldPos.x, worldPos.y, gameData.gridx, gameData.gridy,
-                                                gameData.gridScale, &gameData.grid1);
-            gridCell->state = !gridCell->state;
+    MouseButton button;
+    if (mouseDown(&button)) {
+        Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+        if (button == MOUSE_BUTTON_LEFT) {
+            CellValue *result = NULL;
+            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
+                          gameData.gridScale, &result)) {
+                result->material = WATER;
+                result->type = FLUID;
+                result->state = 32;
+            }
+        } else if (button == MOUSE_BUTTON_RIGHT) {
+            CellValue *result = NULL;
+            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
+                          gameData.gridScale, &result)) {
+                result->material = NONE;
+                result->type = VACUUM;
+                result->state = 0;
+            }
         }
     }
 
-    if (gameData.timer > 1.0f/(float)UPDATE_RATE) {
-        updateGrids(&gameData.grid1, &gameData.grid2);
+    if (IsKeyDown(KEY_L)) {
+        Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+        CellValue *result = NULL;
+        if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
+                      gameData.gridScale, &result)) {
+            result->material = LAVA;
+            result->type = FLUID;
+            result->state = 32;
+        }
+    }
+    if (IsKeyDown(KEY_T)) {
+        Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
+        CellValue *result = NULL;
+        if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
+                      gameData.gridScale, &result)) {
+            result->material = STONE;
+            result->type = SOLID;
+            result->state = 32;
+        }
+    }
+
+    if (IsKeyPressed(KEY_SPACE)) {
+        gameData.paused = !gameData.paused;
+    }
+
+    if (IsKeyPressed(KEY_F) && gameData.paused) {
+        evolveGrid(&gameData.grid1, &gameData.grid2);
 
         // Swapping grids
         Grid temp = gameData.grid1;
@@ -168,6 +217,33 @@ void updateSceneGrid() {
         gameData.grid2 = temp;
 
         gameData.timer = 0.0f;
+    }
+
+    if (IsKeyPressed(KEY_I)) {
+        logFlag = !logFlag;
+    }
+
+    if (!gameData.paused && gameData.timer > 1.0f / (float)UPDATE_RATE) {
+
+        clock_t begin = 0;
+        if (logFlag) {
+            begin = clock();
+        }
+
+        evolveGrid(&gameData.grid1, &gameData.grid2);
+
+        // Swapping grids
+        Grid temp = gameData.grid1;
+        gameData.grid1 = gameData.grid2;
+        gameData.grid2 = temp;
+
+        gameData.timer = 0.0f;
+
+        if (logFlag) {
+            clock_t end = clock();
+            double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+            LogMessage(LOG_INFO, "Time to update: %f secs", time_spent);
+        }
     }
 }
 
@@ -245,16 +321,20 @@ void drawSceneGrid() {
 
     BeginMode2D(gameData.camera);
 
-    drawGrid(gameData.gridx, gameData.gridy, gameData.gridScale, gameData.gridScale / 8, gameData.grid1);
+    // drawGrid(&gameData.grid1, gameData.gridx, gameData.gridy, gameData.gridScale, gameData.gridScale, 0);
 
-    BoundingBox gridbbox = gridBoundingBox(gameData.gridx, gameData.gridy, gameData.gridScale, gameData.grid1);
-    DrawBoundingBox(gridbbox, RED);
+    DrawTexturePro(
+        gameData.gridTexture.texture,
+        (Rectangle){0, 0, (float)gameData.gridTexture.texture.width, -(float)gameData.gridTexture.texture.height},
+        (Rectangle){gameData.gridx, gameData.gridy, gameData.gridScale * gameData.gridWidth,
+                    gameData.gridScale * gameData.gridWidth},
+        (Vector2){0, 0}, 0.0f, WHITE);
 
     EndMode2D();
 
     DrawText(TextFormat("%f", gameData.camera.zoom), 10, 10, 20, WHITE);
     DrawText(TextFormat("Time: %f", gameData.timer), 10, 30, 20, BLUE);
-    DrawText(TextFormat("Time: %s", gameData.grid1.label), 10, 50, 20, BLUE);
+    DrawText(TextFormat("%s", gameData.paused ? "Paused" : ""), WIDTH - 200, 200, 32, RED);
 }
 
 void drawSceneQuadTree() {
@@ -290,6 +370,12 @@ void draw() {
         drawSceneTitle();
         break;
     case GRID:
+        BeginTextureMode(gameData.gridTexture);
+        // clang-format off
+            ClearBackground(BLANK);
+            drawGridPixels(&gameData.grid1, 0, 0);
+        // clang-format on
+        EndTextureMode();
         drawSceneGrid();
         break;
     case QUADTREE:

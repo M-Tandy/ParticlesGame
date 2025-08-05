@@ -42,6 +42,18 @@ void initGrid(Grid *grid, uint8_t rows, uint8_t cols, char *label) {
     grid->label = label;
 }
 
+void freeGrid(Grid *grid) {
+    for (int i = 0; i < grid->rows; i++) {
+        free(grid->cells[i]);
+        grid->cells[i] = NULL;
+    }
+    free(grid->cells);
+    grid->cells = NULL;
+
+    grid->rows = 0;
+    grid->cols = 0;
+}
+
 // Retruns the drawn width of the grid. Useful for centering a grid.
 int gridDrawWidth(int scale, Grid grid) { return grid.cols * scale; }
 
@@ -59,18 +71,6 @@ void drawGrid(int x, int y, int scale, int cellPadding, Grid grid) {
             drawCell(x + col * scale, y + row * scale, scale, cellPadding, cell, cell.state ? BLUE : GRAY);
         }
     }
-}
-
-void freeGrid(Grid *grid) {
-    for (int i = 0; i < grid->rows; i++) {
-        free(grid->cells[i]);
-        grid->cells[i] = NULL;
-    }
-    free(grid->cells);
-    grid->cells = NULL;
-
-    grid->rows = 0;
-    grid->cols = 0;
 }
 
 Neighbourhood getNeighbourhood(int row, int col, Grid *grid) {

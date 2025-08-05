@@ -9,7 +9,7 @@
 
 typedef struct QuadTree QuadTree;
 
-typedef struct OccupationNumber {
+typedef struct QOccupationNumber {
     int nw;
     int n;
     int ne;
@@ -19,7 +19,7 @@ typedef struct OccupationNumber {
     int sw;
     int s;
     int se;
-} OccupationNumber;
+} QOccupationNumber;
 
 typedef enum {
     FLUID_WATER,
@@ -44,7 +44,7 @@ typedef struct QuadrantValue {
         int integer;
         FluidValue fluid;
         QuadTree *quadtree;
-        OccupationNumber occupationNumber;
+        QOccupationNumber occupationNumber;
     } as;
 } QuadrantValue;
 
@@ -62,7 +62,7 @@ typedef struct QuadrantValue {
 #define INT_VALUE(value) ((QuadrantValue){VAL_INT, {.integer = value}})
 #define FLUID_VALUE(fvalue) ((QuadrantValue){VAL_FLUID, {.fluid = (FluidValue)fvalue}})
 #define QUADTREE_VALUE(qtree) ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)qtree}})
-#define OCCUPATION_NUMBER_VALUE(occ) ((QuadrantValue){VAL_OCCUPATION, {.occupationNumber = (OccupationNumber)occ}})
+#define OCCUPATION_NUMBER_VALUE(occ) ((QuadrantValue){VAL_OCCUPATION, {.occupationNumber = (QOccupationNumber)occ}})
 #define EMPTY_VALUE ((QuadrantValue){VAL_TREE, {.quadtree = (QuadTree *)NULL}})
 
 typedef struct CellNeighbourhood {

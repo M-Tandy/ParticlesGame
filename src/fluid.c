@@ -11,7 +11,7 @@
 
 static QuadrantValue identity(CellNeighbourhood n) { return n.c; }
 
-static void initOccupationNumber(OccupationNumber *occ) {
+static void initQOccupationNumber(QOccupationNumber *occ) {
     occ->nw = 0;
     occ->n = 0;
     occ->ne = 0;
@@ -175,9 +175,9 @@ static int resolvePressureDifference(QuadrantValue source, QuadrantValue destina
 static int constrain(int x) { return x <= MAX_FLOW ? x : MAX_FLOW; }
 
 // Assumes center element is a fluid
-static OccupationNumber collision(CellNeighbourhood n) {
-    OccupationNumber occ;
-    initOccupationNumber(&occ);
+static QOccupationNumber collision(CellNeighbourhood n) {
+    QOccupationNumber occ;
+    initQOccupationNumber(&occ);
     occ.c = resolve(n.c).state;
     
     int diff = 0;

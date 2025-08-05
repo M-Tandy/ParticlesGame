@@ -12,8 +12,8 @@
 #include "table.h"
 #include "ui.h"
 
-#define WIDTH 1600
-#define HEIGHT 900
+#define WIDTH 1728
+#define HEIGHT 1024
 #define CELLPOWER 5
 #define GRIDWIDTH 2048.0f / 2
 #define UPDATE_RATE 60
@@ -36,7 +36,8 @@ typedef struct GameData {
     Grid grid2;
     int gridx;
     int gridy;
-    int gridScale;
+    int gridWidthScale;
+    int gridHeightScale;
     int gridWidth;
     RenderTexture2D gridTexture;
 
@@ -81,14 +82,16 @@ void initGameData() {
     gameData.scene = TITLE;
 
     int width = 256;
-    int renderWidth = 512;
+    int renderWidth = 1024;
+    int renderHeight = 1024;
     initGrid(&gameData.grid1, width, width);
     initGrid(&gameData.grid2, width, width);
-    gameData.gridScale = renderWidth / width;
+    gameData.gridWidthScale = renderWidth / width;
+    gameData.gridHeightScale = renderHeight / width;
     gameData.gridWidth = width;
 
-    gameData.gridx = -gameData.gridScale * width / 2;
-    gameData.gridy = -gameData.gridScale * width / 2;
+    gameData.gridx = -gameData.gridWidthScale * width / 2;
+    gameData.gridy = -gameData.gridHeightScale * width / 2;
     gameData.gridTexture = LoadRenderTexture(width, width);
 
     initQuadTable();
@@ -106,7 +109,7 @@ void initGameData() {
 
     gameData.paused = true;
 
-    bool logFlag = false;
+    logFlag = false;
 }
 
 void freeGameData() {
@@ -166,16 +169,16 @@ void updateSceneGrid() {
         Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
         if (button == MOUSE_BUTTON_LEFT) {
             CellValue *result = NULL;
-            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
-                          gameData.gridScale, &result)) {
+            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridWidthScale,
+                          gameData.gridHeightScale, &result)) {
                 result->material = WATER;
                 result->type = FLUID;
                 result->state = 32;
             }
         } else if (button == MOUSE_BUTTON_RIGHT) {
             CellValue *result = NULL;
-            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
-                          gameData.gridScale, &result)) {
+            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridWidthScale,
+                          gameData.gridHeightScale, &result)) {
                 result->material = NONE;
                 result->type = VACUUM;
                 result->state = 0;
@@ -186,8 +189,8 @@ void updateSceneGrid() {
     if (IsKeyDown(KEY_L)) {
         Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
         CellValue *result = NULL;
-        if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
-                      gameData.gridScale, &result)) {
+        if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridWidthScale,
+                      gameData.gridHeightScale, &result)) {
             result->material = LAVA;
             result->type = FLUID;
             result->state = 32;
@@ -196,8 +199,8 @@ void updateSceneGrid() {
     if (IsKeyDown(KEY_T)) {
         Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
         CellValue *result = NULL;
-        if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridScale,
-                      gameData.gridScale, &result)) {
+        if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridWidthScale,
+                      gameData.gridHeightScale, &result)) {
             result->material = STONE;
             result->type = SOLID;
             result->state = 32;
@@ -326,8 +329,8 @@ void drawSceneGrid() {
     DrawTexturePro(
         gameData.gridTexture.texture,
         (Rectangle){0, 0, (float)gameData.gridTexture.texture.width, -(float)gameData.gridTexture.texture.height},
-        (Rectangle){gameData.gridx, gameData.gridy, gameData.gridScale * gameData.gridWidth,
-                    gameData.gridScale * gameData.gridWidth},
+        (Rectangle){gameData.gridx, gameData.gridy, gameData.gridWidthScale * gameData.gridWidth,
+                    gameData.gridHeightScale * gameData.gridWidth},
         (Vector2){0, 0}, 0.0f, WHITE);
 
     EndMode2D();

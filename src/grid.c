@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "memory.h"
 #include "neighbourhood.h"
+#include "value.h"
 
 #include <math.h>
 
@@ -21,7 +22,7 @@ void initGrid(Grid *grid, uint16_t rows, uint16_t cols) {
 }
 
 Grid *newGrid(uint16_t rows, uint16_t cols) {
-    Grid *grid;
+    Grid *grid = NULL;
     initGrid(grid, rows, cols);
 
     return grid;
@@ -60,11 +61,11 @@ static void copyGrid(const Grid *grid, Grid *result) {
 }
 
 // Returns the cell at position `row` and `col` in grid. Returns `_default` if the location is outside the grid.
-static CellValue getCell(const Grid *grid, int row, int col, CellValue _default) {
+static CellValue *getCell(const Grid *grid, int row, int col) {
     if ((0 <= row) && (row <= grid->rows - 1) && (0 <= col) && (col <= grid->cols - 1)) {
-        return grid->cells[row][col];
+        return &grid->cells[row][col];
     }
-    return _default;
+    return NULL;
 }
 
 bool getCellAt(const Grid *grid, int grid_x, int grid_y, float x, float y, int cellWidth, int cellHeight,
@@ -80,35 +81,44 @@ bool getCellAt(const Grid *grid, int grid_x, int grid_y, float x, float y, int c
 
 // Gets the cell neighbourhood of cell at `row` and `col`. `boundary` determines what objects outside the grid
 // default to.
-static CellNeighbourhood getCellNeighbourhood(const Grid *grid, int row, int col, CellValue boundary) {
-    CellValue nw = getCell(grid, row - 1, col - 1, boundary);
-    CellValue n = getCell(grid, row - 1, col, boundary);
-    CellValue ne = getCell(grid, row - 1, col + 1, boundary);
-    CellValue w = getCell(grid, row, col - 1, boundary);
-    CellValue c = getCell(grid, row, col, boundary);
-    CellValue e = getCell(grid, row, col + 1, boundary);
-    CellValue sw = getCell(grid, row + 1, col - 1, boundary);
-    CellValue s = getCell(grid, row + 1, col, boundary);
-    CellValue se = getCell(grid, row + 1, col + 1, boundary);
+static CellNeighbourhood getCellNeighbourhood(const Grid *grid, int row, int col, CellValue *boundary) {
+    CellValue *nw = getCell(grid, row - 1, col - 1);
+    CellValue *n = getCell(grid, row - 1, col);
+    CellValue *ne = getCell(grid, row - 1, col + 1);
+    CellValue *w = getCell(grid, row, col - 1);
+    CellValue *c = getCell(grid, row, col);
+    CellValue *e = getCell(grid, row, col + 1);
+    CellValue *sw = getCell(grid, row + 1, col - 1);
+    CellValue *s = getCell(grid, row + 1, col);
+    CellValue *se = getCell(grid, row + 1, col + 1);
 
-    return newCellNeighbourhood(nw, n, ne, w, c, e, sw, s, se);
+#define IFNULL(ptr) (ptr == NULL ? boundary : ptr)
+
+    return newCellNeighbourhood(IFNULL(nw), IFNULL(n), IFNULL(ne), IFNULL(w), IFNULL(c), IFNULL(e), IFNULL(sw), IFNULL(s), IFNULL(se));
+#undef IFNULL
 }
 
+static CellValue boundary = (CellValue){SOLID, STONE, 1, (OccupationNumber){0, 0, 0, 0, 0, 0, 0, 0, 0}};
 static void evolve(const Grid *grid, Grid *result) {
     for (int row = 0; row < grid->rows; row++) {
         for (int col = 0; col < grid->cols; col++) {
-            CellNeighbourhood n = getCellNeighbourhood(grid, row, col, newCellValue(SOLID, STONE, 1));
-            grid->cells[row][col].occ = collide(n);
+            // Optimisation -> collisions only happpen for fluids
+            if (grid->cells[row][col].type == FLUID) {
+                CellNeighbourhood n = getCellNeighbourhood(grid, row, col, &boundary);
+                grid->cells[row][col].occ = collide(n);
+            } else {
+                initOccupationNumber(&grid->cells[row][col].occ);
+            }
         }
     }
 
     for (int row = 0; row < grid->rows; row++) {
         for (int col = 0; col < grid->cols; col++) {
-            CellNeighbourhood n = getCellNeighbourhood(grid, row, col, newCellValue(SOLID, STONE, 1));
+            CellNeighbourhood n = getCellNeighbourhood(grid, row, col, &boundary);
             CellValue *cell = &result->cells[row][col];
 
             cell->state = surroundingSum(n);
-            if (n.c.material != STONE) {
+            if (n.c->material != STONE) {
                 if (cell->state == 0) {
                     cell->type = VACUUM;
                     cell->material = NONE;
@@ -117,8 +127,7 @@ static void evolve(const Grid *grid, Grid *result) {
                     cell->material = determineMaterial(n);
                 }
             }
-
-            n.c = *cell;
+            n.c = cell;
             *cell = react(n);
         }
     }

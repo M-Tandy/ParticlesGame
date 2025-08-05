@@ -39,7 +39,10 @@ void freeGrid(Grid *grid) {
 void drawGridPixels(const Grid *grid, int x, int y) {
     for (int row = 0; row < grid->rows; row++) {
         for (int col = 0; col < grid->cols; col++) {
-            DrawPixel(x + col, y + row, cellColor(grid->cells[row][col]));
+            if (!grid->cells[row][col].settled) {
+                DrawPixel(x + col, y + row, cellColor(grid->cells[row][col]));
+                grid->cells[row][col].settled = true;
+            }
         }
     }
 }
@@ -94,11 +97,24 @@ static CellNeighbourhood getCellNeighbourhood(const Grid *grid, int row, int col
 
 #define IFNULL(ptr) (ptr == NULL ? boundary : ptr)
 
-    return newCellNeighbourhood(IFNULL(nw), IFNULL(n), IFNULL(ne), IFNULL(w), IFNULL(c), IFNULL(e), IFNULL(sw), IFNULL(s), IFNULL(se));
+    return newCellNeighbourhood(IFNULL(nw), IFNULL(n), IFNULL(ne), IFNULL(w), IFNULL(c), IFNULL(e), IFNULL(sw),
+                                IFNULL(s), IFNULL(se));
 #undef IFNULL
 }
 
-static CellValue boundary = (CellValue){SOLID, STONE, 1, (OccupationNumber){0, 0, 0, 0, 0, 0, 0, 0, 0}};
+static void unsettle(CellNeighbourhood n) {
+    n.nw->settled = false;
+    n.n->settled = false;
+    n.ne->settled = false;
+    n.w->settled = false;
+    n.c->settled = false;
+    n.e->settled = false;
+    n.sw->settled = false;
+    n.s->settled = false;
+    n.se->settled = false;
+}
+
+static CellValue boundary = (CellValue){SOLID, STONE, 1, (OccupationNumber){0, 0, 0, 0, 0, 0, 0, 0, 0}, true};
 static void evolve(const Grid *grid, Grid *result) {
     for (int row = 0; row < grid->rows; row++) {
         for (int col = 0; col < grid->cols; col++) {
@@ -106,6 +122,9 @@ static void evolve(const Grid *grid, Grid *result) {
             if (grid->cells[row][col].type == FLUID) {
                 CellNeighbourhood n = getCellNeighbourhood(grid, row, col, &boundary);
                 grid->cells[row][col].occ = collide(n);
+
+                CellNeighbourhood n_r = getCellNeighbourhood(result, row, col, &boundary);
+                unsettle(n_r);
             } else {
                 initOccupationNumber(&grid->cells[row][col].occ);
             }
@@ -114,21 +133,23 @@ static void evolve(const Grid *grid, Grid *result) {
 
     for (int row = 0; row < grid->rows; row++) {
         for (int col = 0; col < grid->cols; col++) {
-            CellNeighbourhood n = getCellNeighbourhood(grid, row, col, &boundary);
-            CellValue *cell = &result->cells[row][col];
+            if (!result->cells[row][col].settled) {
+                CellNeighbourhood n = getCellNeighbourhood(grid, row, col, &boundary);
+                CellValue *cell = &result->cells[row][col];
 
-            cell->state = surroundingSum(n);
-            if (n.c->material != STONE) {
-                if (cell->state == 0) {
-                    cell->type = VACUUM;
-                    cell->material = NONE;
-                } else {
-                    cell->type = FLUID;
-                    cell->material = determineMaterial(n);
+                cell->state = surroundingSum(n);
+                if (n.c->material != STONE) {
+                    if (cell->state == 0) {
+                        cell->type = VACUUM;
+                        cell->material = NONE;
+                    } else {
+                        cell->type = FLUID;
+                        cell->material = determineMaterial(n);
+                    }
                 }
+                n.c = cell;
+                *cell = react(n);
             }
-            n.c = cell;
-            *cell = react(n);
         }
     }
 }

@@ -36,6 +36,7 @@ typedef struct CellValue {
     CMaterial material;
     int state;
     OccupationNumber occ;
+    bool settled;
 } CellValue;
 
 void initOccupationNumber(OccupationNumber *occ);

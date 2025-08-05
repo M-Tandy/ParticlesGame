@@ -20,6 +20,7 @@ void initCellValue(CellValue *cvalue, CType type, CMaterial material, int state)
     cvalue->material = material;
     cvalue->state = state;
     initOccupationNumber(&cvalue->occ);
+    cvalue->settled = false;
 }
 
 CellValue newCellValue(CType type, CMaterial material, int state) {

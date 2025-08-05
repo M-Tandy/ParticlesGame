@@ -7,7 +7,6 @@
 #include "grid.h"
 #include "quadtree.h"
 #include "raylib.h"
-#include "raymath.h"
 #include "rlgl.h"
 #include "table.h"
 #include "ui.h"
@@ -81,7 +80,7 @@ void toQuadTree() { gameData.scene = QUADTREE; }
 void initGameData() {
     gameData.scene = TITLE;
 
-    int width = 256;
+    int width = 1024;
     int renderWidth = 1024;
     int renderHeight = 1024;
     initGrid(&gameData.grid1, width, width);
@@ -174,6 +173,7 @@ void updateSceneGrid() {
                 result->material = WATER;
                 result->type = FLUID;
                 result->state = 32;
+                result->settled = false;
             }
         } else if (button == MOUSE_BUTTON_RIGHT) {
             CellValue *result = NULL;
@@ -194,6 +194,7 @@ void updateSceneGrid() {
             result->material = LAVA;
             result->type = FLUID;
             result->state = 32;
+            result->settled = false;
         }
     }
     if (IsKeyDown(KEY_T)) {
@@ -204,6 +205,7 @@ void updateSceneGrid() {
             result->material = STONE;
             result->type = SOLID;
             result->state = 32;
+            result->settled = false;
         }
     }
 
@@ -375,7 +377,7 @@ void draw() {
     case GRID:
         BeginTextureMode(gameData.gridTexture);
         // clang-format off
-            ClearBackground(BLANK);
+            // ClearBackground(BLANK);
             drawGridPixels(&gameData.grid1, 0, 0);
         // clang-format on
         EndTextureMode();

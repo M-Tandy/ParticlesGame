@@ -38,6 +38,8 @@ Color cellColor(CellValue cvalue) {
         return ColorBrightness(RED, brightness);
     case STONE:
         return ColorBrightness(GRAY, brightness);
+    case AIR:
+        return ColorBrightness(WHITE, brightness);
     default:
         return DARKGRAY;
     }
@@ -45,23 +47,8 @@ Color cellColor(CellValue cvalue) {
 
 void drawCellValue(CellValue cvalue, int x, int y, int width, int height) {
     Vector2 pos = (Vector2){x, y};
-    if (cvalue.material == STONE) {
-        DrawRectangle(x, y, width, width, GRAY);
-    } else if (cvalue.material == WATER) {
-        Color color = ColorBrightness(BLUE, 0.5f - cvalue.state / 64.0f);
-        DrawRectangle(x, y, width, width, color);
-#ifdef DEBUG_CELL_INFO
-        DrawText(TextFormat("%d", cvalue.state), x, y, 16, WHITE);
-#endif
-    } else if (cvalue.material == LAVA) {
-        Color color = ColorBrightness(ORANGE, 0.5f - cvalue.state / 64.0f);
-        DrawRectangle(x, y, width, width, color);
-    }
-
-    if (cvalue.type == VACUUM) {
-        DrawRectangle(x, y, width, width, DARKGRAY);
-        DrawRectangle(x, y, width / 2, width / 2, ColorBrightness(DARKGRAY, 0.1));
-    }
+    Color color = cellColor(cvalue);
+    DrawRectangle(x, y, width, width, color);
 }
 
 void copyCellValue(const CellValue *source, CellValue *destination) {

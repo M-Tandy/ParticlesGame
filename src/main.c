@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <time.h>
 
 #include "common.h"
 #include "debug.h"
@@ -20,16 +19,20 @@
 
 #define CAMERA_SPEED 8
 
+#define GRID_WIDTH 1024
+#define GRID_RENDER_WIDTH 1024
+#define GRID_RENDER_HEIGHT 1024
+
 typedef enum {
     TITLE,
     GRID,
     QUADTREE,
 } Scene;
 
-typedef enum { ADD, DELETE } Mode;
-
 typedef struct GameData {
     Scene scene;
+
+    CellValue placing;
 
     Grid grid1;
     Grid grid2;
@@ -42,23 +45,21 @@ typedef struct GameData {
 
     QuadTree *quadtree;
 
-    Mode mode;
-
     Camera2D camera;
     float timer;
 
     Button buttonStart;
     Button buttonQuadTree;
+    Button buttonNextMaterial;
+    Button buttonIncrementState;
+    Button buttonDecrementState;
 
     bool paused;
 } GameData;
 
 static GameData gameData;
-static bool logFlag;
 
 Table quadtrees;
-
-const Vector2 origin = (Vector2){0.0f, 0.0f};
 
 bool mouseDown(MouseButton *button) {
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
@@ -73,30 +74,58 @@ bool mouseDown(MouseButton *button) {
     return false;
 }
 
+// BUTTON STUFF
 void toGrid() { gameData.scene = GRID; }
 
 void toQuadTree() { gameData.scene = QUADTREE; }
 
+void nextPlacing() {
+    switch (gameData.placing.material) {
+
+    case NONE:
+        gameData.placing.type = GAS;
+        gameData.placing.material = AIR;
+        break;
+    case AIR:
+        gameData.placing.type = FLUID;
+        gameData.placing.material = WATER;
+        break;
+    case WATER:
+        gameData.placing.type = FLUID;
+        gameData.placing.material = LAVA;
+        break;
+    case LAVA:
+        gameData.placing.type = SOLID;
+        gameData.placing.material = STONE;
+        break;
+    case STONE:
+        gameData.placing.type = VACUUM;
+        gameData.placing.material = NONE;
+        break;
+    }
+}
+
+void incrementPlacingState() { gameData.placing.state++; }
+
+void decrementPlacingState() { gameData.placing.state--; }
+
 void initGameData() {
     gameData.scene = TITLE;
 
-    int width = 1024;
-    int renderWidth = 1024;
-    int renderHeight = 1024;
-    initGrid(&gameData.grid1, width, width);
-    initGrid(&gameData.grid2, width, width);
-    gameData.gridWidthScale = renderWidth / width;
-    gameData.gridHeightScale = renderHeight / width;
-    gameData.gridWidth = width;
+    gameData.placing = newCellValue(VACUUM, NONE, 0);
 
-    gameData.gridx = -gameData.gridWidthScale * width / 2;
-    gameData.gridy = -gameData.gridHeightScale * width / 2;
-    gameData.gridTexture = LoadRenderTexture(width, width);
+    // Grid
+    initGrid(&gameData.grid1, GRID_WIDTH, GRID_WIDTH);
+    initGrid(&gameData.grid2, GRID_WIDTH, GRID_WIDTH);
+    gameData.gridWidthScale = GRID_RENDER_WIDTH / GRID_WIDTH;
+    gameData.gridHeightScale = GRID_RENDER_HEIGHT / GRID_WIDTH;
+    gameData.gridWidth = GRID_WIDTH;
+    gameData.gridx = -gameData.gridWidthScale * GRID_WIDTH / 2;
+    gameData.gridy = -gameData.gridHeightScale * GRID_WIDTH / 2;
+    gameData.gridTexture = LoadRenderTexture(GRID_WIDTH, GRID_WIDTH);
 
     initQuadTable();
     gameData.quadtree = newEmptyQuadTree(CELLPOWER);
-
-    gameData.mode = ADD;
 
     gameData.camera = (Camera2D){.offset = (Vector2){WIDTH / 2.0, HEIGHT / 2.0}, .zoom = 1.0f};
     gameData.timer = 0.0f;
@@ -105,10 +134,13 @@ void initGameData() {
         newButton((Rectangle){WIDTH / 2 - 200 / 2 - 200, HEIGHT / 2, 200, 100}, true, "Grid", 32, toGrid);
     gameData.buttonQuadTree =
         newButton((Rectangle){WIDTH / 2 - 200 / 2 + 200, HEIGHT / 2, 200, 100}, true, "QuadTree", 32, toQuadTree);
+    gameData.buttonNextMaterial = newButton((Rectangle){WIDTH - 50, 200, 50, 50}, true, "->", 32, nextPlacing);
+    gameData.buttonIncrementState =
+        newButton((Rectangle){WIDTH - 50, 300, 50, 50}, true, "+", 32, incrementPlacingState);
+    gameData.buttonDecrementState =
+        newButton((Rectangle){WIDTH - 50, 400, 50, 50}, true, "-", 32, decrementPlacingState);
 
     gameData.paused = true;
-
-    logFlag = false;
 }
 
 void freeGameData() {
@@ -160,25 +192,31 @@ void cameraUpdate() {
     }
 }
 
+static bool buttonsSceneGrid() {
+    return tryButtonPress(gameData.buttonIncrementState) || tryButtonPress(gameData.buttonDecrementState) ||
+           tryButtonPress(gameData.buttonNextMaterial);
+}
+
 void updateSceneGrid() {
     cameraUpdate();
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        buttonsSceneGrid();
+    }
 
     MouseButton button;
     if (mouseDown(&button)) {
         Vector2 worldPos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
         if (button == MOUSE_BUTTON_LEFT) {
             CellValue *result = NULL;
-            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridWidthScale,
-                          gameData.gridHeightScale, &result)) {
-                result->material = WATER;
-                result->type = FLUID;
-                result->state = 32;
+            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y,
+                          gameData.gridWidthScale, gameData.gridHeightScale, &result)) {
+                *result = gameData.placing;
                 result->settled = false;
             }
         } else if (button == MOUSE_BUTTON_RIGHT) {
             CellValue *result = NULL;
-            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y, gameData.gridWidthScale,
-                          gameData.gridHeightScale, &result)) {
+            if (getCellAt(&gameData.grid1, gameData.gridx, gameData.gridy, worldPos.x, worldPos.y,
+                          gameData.gridWidthScale, gameData.gridHeightScale, &result)) {
                 result->material = NONE;
                 result->type = VACUUM;
                 result->state = 0;
@@ -224,17 +262,7 @@ void updateSceneGrid() {
         gameData.timer = 0.0f;
     }
 
-    if (IsKeyPressed(KEY_I)) {
-        logFlag = !logFlag;
-    }
-
     if (!gameData.paused && gameData.timer > 1.0f / (float)UPDATE_RATE) {
-
-        clock_t begin = 0;
-        if (logFlag) {
-            begin = clock();
-        }
-
         evolveGrid(&gameData.grid1, &gameData.grid2);
 
         // Swapping grids
@@ -243,12 +271,6 @@ void updateSceneGrid() {
         gameData.grid2 = temp;
 
         gameData.timer = 0.0f;
-
-        if (logFlag) {
-            clock_t end = clock();
-            double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-            LogMessage(LOG_INFO, "Time to update: %f secs", time_spent);
-        }
     }
 }
 
@@ -258,14 +280,14 @@ void updateSceneQuadTree() {
     MouseButton button;
     if (mouseDown(&button)) {
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), gameData.camera);
-        if (IN_SQUARE(mousePos, origin, GRIDWIDTH)) {
+        if (IN_SQUARE(mousePos, ORIGIN, GRIDWIDTH)) {
             QuadTree *newTree = NULL;
 
             if (button == MOUSE_BUTTON_LEFT) {
                 FluidValue newFluid = (FluidValue){FLUID_WATER, FLUID_AMOUNT};
-                newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, FLUID_VALUE(newFluid));
+                newTree = setPointInQuadTree(mousePos, ORIGIN, GRIDWIDTH, gameData.quadtree, FLUID_VALUE(newFluid));
             } else if (button == MOUSE_BUTTON_RIGHT) {
-                newTree = setPointInQuadTree(mousePos, origin, GRIDWIDTH, gameData.quadtree, INT_VALUE(0));
+                newTree = setPointInQuadTree(mousePos, ORIGIN, GRIDWIDTH, gameData.quadtree, INT_VALUE(0));
             }
 
             if (newTree != NULL) {
@@ -321,6 +343,12 @@ void drawSceneTitle() {
     drawButton(gameData.buttonQuadTree);
 }
 
+static void drawButtonsSceneGrid() {
+    drawButton(gameData.buttonNextMaterial);
+    drawButton(gameData.buttonIncrementState);
+    drawButton(gameData.buttonDecrementState);
+}
+
 void drawSceneGrid() {
     ClearBackground(BLACK);
 
@@ -337,6 +365,10 @@ void drawSceneGrid() {
 
     EndMode2D();
 
+    drawCellValue(gameData.placing, WIDTH - 100, 50, 50, 50);
+    DrawText(TextFormat("%d", gameData.placing.state), WIDTH - 90, 60, 32, WHITE);
+    drawButtonsSceneGrid();
+
     DrawText(TextFormat("%f", gameData.camera.zoom), 10, 10, 20, WHITE);
     DrawText(TextFormat("Time: %f", gameData.timer), 10, 30, 20, BLUE);
     DrawText(TextFormat("%s", gameData.paused ? "Paused" : ""), WIDTH - 200, 200, 32, RED);
@@ -350,14 +382,13 @@ void drawSceneQuadTree() {
     float gridCellSize = miniumumQuadSize(GRIDWIDTH, gameData.quadtree);
     int cells = maxQuads(gameData.quadtree);
 
-    drawQuadTree(*gameData.quadtree, origin, GRIDWIDTH, gameData.camera);
+    drawQuadTree(*gameData.quadtree, ORIGIN, GRIDWIDTH, gameData.camera);
     // drawQuadFromPosition(mousePos, gameData.quadtree, (Vector2){0.0f, 0.0f}, GRIDWIDTH);
-    drawGridUnderlay(origin, cells, cells, gridCellSize);
+    drawGridUnderlay(ORIGIN, cells, cells, gridCellSize);
 
     EndMode2D();
     DrawText(TextFormat("%d, %f", cells, gridCellSize), 100, 200, 32, WHITE);
 
-    DrawText(TextFormat("%s", gameData.mode == ADD ? "ADD" : "DELETE"), 100, HEIGHT - 200, 32, WHITE);
     DrawText(TextFormat("%s", gameData.paused ? "Paused" : ""), WIDTH - 200, 200, 32, RED);
 #ifdef DEBUG_QUADINFO
     DrawText(TextFormat("%p", gameData.quadtree), 200, HEIGHT - 100, 32, WHITE);

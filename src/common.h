@@ -19,4 +19,6 @@
     ((vector).x >= (center).x - width / 2.0f && vector.x <= center.x + width / 2.0f &&                                     \
      (vector).y >= (center).y - width / 2.0f && vector.y <= center.y + width / 2.0f)
 
+#define ORIGIN (Vector2){0.0f, 0.0f}
+
 #endif // ptest_common_h

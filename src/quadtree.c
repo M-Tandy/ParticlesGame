@@ -161,7 +161,7 @@ static bool compare(QuadrantValue left, QuadrantValue right) {
 // Flips an integer quadrant value between 0 and 1
 static QuadrantValue flip(QuadrantValue value) { return INT_VALUE((AS_INT(value) + 1) % 2); }
 
-static bool isEmpty(QuadrantValue qvalue) { return IS_INT(qvalue) && AS_INT(qvalue) == 0; }
+static bool isEmptyQuadTree(QuadrantValue qvalue) { return IS_INT(qvalue) && AS_INT(qvalue) == 0; }
 
 // QuadTrees
 

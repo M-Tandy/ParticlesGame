@@ -20,5 +20,17 @@
      (vector).y >= (center).y - width / 2.0f && vector.y <= center.y + width / 2.0f)
 
 #define ORIGIN (Vector2){0.0f, 0.0f}
+#define WIDTH 1728
+#define HEIGHT 1024
+#define CELLPOWER 5
+#define GRIDWIDTH 2048.0f / 2
+#define UPDATE_RATE 60
+#define FLUID_AMOUNT 64
+
+#define CAMERA_SPEED 8
+
+#define GRID_WIDTH 1024
+#define GRID_RENDER_WIDTH 1024
+#define GRID_RENDER_HEIGHT 1024
 
 #endif // ptest_common_h

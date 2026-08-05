@@ -21,5 +21,6 @@ typedef struct Button {
 Button newButton(Rectangle bounds, bool initialState, char *text, int fontSize, Event onclick);
 void drawButton(Button button);
 bool tryButtonPress(Button button);
+bool mouseDown(MouseButton *button);
 
 #endif // ptest_ui_h

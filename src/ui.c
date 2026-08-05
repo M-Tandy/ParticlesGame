@@ -44,3 +44,16 @@ bool tryButtonPress(Button button) {
     }
     return false;
 }
+
+bool mouseDown(MouseButton *button) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        *button = MOUSE_BUTTON_LEFT;
+        return true;
+    }
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+        *button = MOUSE_BUTTON_RIGHT;
+        return true;
+    }
+
+    return false;
+}

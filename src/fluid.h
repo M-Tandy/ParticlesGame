@@ -4,7 +4,7 @@
 #include "quadtree.h"
 
 typedef enum {
-    WATER,
+    F_WATER,
 } Type;
 
 typedef struct Fluid {

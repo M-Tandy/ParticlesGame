@@ -22,8 +22,28 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
 endif()
 
 # Our Project
+set (
+  CELLULAR_SOURCES
+  main.c
+  logic.c
 
-add_executable(${PROJECT_NAME} src/main.c src/grid.c src/value.c src/neighbourhood.c src/fluid.c src/ui.c src/quadtree.c src/draw.c src/hash.c src/table.c src/memory.c src/debug.c)
+  debug.c
+  draw.c
+  fluid.c
+  grid.c
+  hash.c
+  memory.c
+  neighbourhood.c
+  quadtree.c
+  table.c
+  ui.c
+  value.c
+)
+
+
+list(TRANSFORM CELLULAR_SOURCES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+
+add_executable(${PROJECT_NAME} ${CELLULAR_SOURCES})
 include_directories(src)
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)

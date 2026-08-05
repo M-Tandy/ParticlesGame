@@ -1,5 +1,4 @@
 #include "value.h"
-#include "cell.h"
 #include "draw.h"
 #include <raylib.h>
 

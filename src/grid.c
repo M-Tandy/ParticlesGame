@@ -1,5 +1,5 @@
-#include "grid.h"
 #include "common.h"
+#include "grid.h"
 #include "debug.h"
 #include "memory.h"
 #include "neighbourhood.h"

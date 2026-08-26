@@ -1,43 +1,39 @@
-#ifndef ptest_data_h
-#define ptest_data_h
+#ifndef cellular_data_h
+#define cellular_data_h
 
-#include "value.h"
-#include "grid.h"
-#include "quadtree.h"
 #include "ui.h"
+#include "value.h"
 
 typedef enum {
     TITLE,
     GRID,
     QUADTREE,
+} SceneName;
+
+typedef struct Scene {
+    void (*init)(void);
+    void (*update)(void);
+    void (*draw)(void);
+    void (*unload)(void);
+
+    // Useful for debugging purposes
+    char* name;
 } Scene;
 
 typedef struct GameData {
-    Scene scene;
-
-    Grid grid1;
-    Grid grid2;
-    int gridx;
-    int gridy;
-    int gridWidthScale;
-    int gridHeightScale;
-    int gridWidth;
-    RenderTexture2D gridTexture;
-
-    QuadTree *quadtree;
+    SceneName sceneName;
+    Scene *scene;
 
     Camera2D camera;
     float timer;
 
     Button buttonStart;
-    Button buttonQuadTree;
     Button buttonNextMaterial;
     Button buttonIncrementState;
     Button buttonDecrementState;
 
-    CellValue placing;
+    Cell placing;
     bool paused;
 } GameData;
 
-#endif // ptest_data_h
-
+#endif // cellular_data_h

@@ -5,7 +5,7 @@ project(Cellular)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Dependencies
-set(RAYLIB_VERSION 5.5)
+set(RAYLIB_VERSION 6.0)
 find_package(raylib ${RAYLIB_VERSION} QUIET) # QUIET or REQUIRED
 if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   include(FetchContent)
@@ -25,17 +25,14 @@ endif()
 set (
   CELLULAR_SOURCES
   main.c
-  logic.c
 
+  control.c
   debug.c
   draw.c
-  fluid.c
   grid.c
   hash.c
   memory.c
-  neighbourhood.c
-  quadtree.c
-  table.c
+  title.c
   ui.c
   value.c
 )

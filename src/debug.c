@@ -32,7 +32,7 @@ void LogMessage(int msgType, const char *format, ...) {
     struct tm *tm_info = localtime(&now);
 
     strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", tm_info);
-    // fprintf(stderr, "[%s] ", timeStr);
+    fprintf(stderr, "[%s] ", timeStr);
 
     switch (msgType)
     {
@@ -50,3 +50,11 @@ void LogMessage(int msgType, const char *format, ...) {
 
     fputs("\n", stderr);
 }
+
+void DebugDrawCameraTargetGuides(Camera2D camera) {
+    DrawLine((int)camera.target.x, -HEIGHT * 10, (int)camera.target.x,
+             WIDTH * 10, GREEN);
+    DrawLine(-HEIGHT * 10, (int)camera.target.y, WIDTH * 10,
+             (int)camera.target.y, GREEN);
+}
+

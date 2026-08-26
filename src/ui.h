@@ -1,26 +1,35 @@
 #ifndef ptest_ui_h
 #define ptest_ui_h
 
+#include "common.h"
 #include "raylib.h"
 
 // Event objects are function pointers
 typedef void (*Event)();
 
-typedef struct UIElement {
+struct UIElement {
     Rectangle bounds;
     bool state;
-} UIElement;
+};
 
 typedef struct Button {
-    UIElement element;
+    struct UIElement element;
     char *text;
     int fontSize;
     Event onclick;
 } Button;
 
-Button newButton(Rectangle bounds, bool initialState, char *text, int fontSize, Event onclick);
+typedef struct UI {
+    Button *buttons;
+    uint8_t count_buttons;
+    uint8_t capacity_buttons;
+} UI;
+
+void initUI(UI *ui);
+void addButton(UI *ui, Rectangle bounds, bool initialState, char *text, int fontSize, Event onclick);
+void updateUI(UI ui);
+void drawUI(UI ui);
 void drawButton(Button button);
-bool tryButtonPress(Button button);
 bool mouseDown(MouseButton *button);
 
 #endif // ptest_ui_h

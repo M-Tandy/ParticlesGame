@@ -2,7 +2,7 @@
 
 #include "hash.h"
 
-int hash_6432shift(long key) {
+int Hash_6432shift(long key) {
     // From: https://gist.github.com/badboy/6267743
     key = (~key) + (key << 18); // key = (key << 18) - key - 1;
     key = key ^ (key >> 31);
@@ -13,6 +13,6 @@ int hash_6432shift(long key) {
     return (int)key;
 }
 
-int hash_uintptr_t(uintptr_t ptr) { return hash_6432shift(ptr); }
+int Hash_uintptr_t(uintptr_t ptr) { return Hash_6432shift(ptr); }
 
-int hash_ptr(void *ptr) { return hash_uintptr_t((uintptr_t)ptr); }
+int Hash_ptr(void *ptr) { return Hash_uintptr_t((uintptr_t)ptr); }

@@ -1,8 +1,7 @@
 #include "value.h"
-#include "draw.h"
 #include <raylib.h>
 
-void initOccupationNumber(OccupationNumber *occ) {
+void InitOccupationNumber(OccupationNumber *occ) {
     occ->nw = 0;
     occ->n = 0;
     occ->ne = 0;
@@ -14,56 +13,68 @@ void initOccupationNumber(OccupationNumber *occ) {
     occ->se = 0;
 }
 
-void initCellValue(CellValue *cvalue, CType type, CMaterial material, int state) {
+void InitCell(Cell *cvalue, CType type, CMaterial material, int state) {
     cvalue->type = type;
     cvalue->material = material;
     cvalue->state = state;
-    initOccupationNumber(&cvalue->occ);
+    // initOccupationNumber(&cvalue->occ);
     cvalue->settled = false;
 }
 
-CellValue newCellValue(CType type, CMaterial material, int state) {
-    CellValue cvalue;
-    initCellValue(&cvalue, type, material, state);
+Cell NewCell(CType type, CMaterial material, int state) {
+    Cell cvalue;
+    InitCell(&cvalue, type, material, state);
     return cvalue;
 }
 
-Color cellColor(CellValue cvalue) {
-    float brightness = 0.5f - cvalue.state / 64.0f;
-    switch (cvalue.material) {
-    case WATER:
-        return ColorBrightness(BLUE, brightness);
-    case LAVA:
-        return ColorBrightness(RED, brightness);
-    case STONE:
-        return ColorBrightness(GRAY, brightness);
-    case AIR:
-        return ColorBrightness(WHITE, brightness);
-    default:
-        return DARKGRAY;
-    }
+// clang-format off
+static const Color color[] = {
+    [NONE]  = NONE,
+    [AIR]   = WHITE,
+    [WATER] = BLUE,
+    [LAVA]  = RED,
+    [STONE] = GRAY,
+};
+// clang-format on
+
+static Color solidColor(CMaterial material) { return color[material]; }
+
+static Color fluidColor(CMaterial material, double state) {
+    float brightness = 0.5 - state / 2.0;
+    return ColorBrightness(color[material], brightness);
 }
 
-void drawCellValue(CellValue cvalue, int x, int y, int width, int height) {
+Color CellColor(Cell cvalue) {
+    if (IS_SOLID(cvalue)) {
+        return solidColor(cvalue.material);
+    } else if (IS_FLUID(cvalue)) {
+        return fluidColor(cvalue.material, cvalue.state);
+    }
+
+    return DARKGRAY;
+}
+
+void DrawCell(Cell cvalue, int x, int y, int width, int height) {
     Vector2 pos = (Vector2){x, y};
-    Color color = cellColor(cvalue);
+    Color color = CellColor(cvalue);
     DrawRectangle(x, y, width, width, color);
 }
 
-void copyCellValue(const CellValue *source, CellValue *destination) {
+void CopyCell(const Cell *source, Cell *destination) {
     destination->type = source->type;
     destination->material = source->material;
     destination->state = source->state;
+    // destination->doubleState = source->doubleState;
 }
 
-void setCellState(CellValue *cvalue, int state) {
+void setCell(Cell *cvalue, int state) {
     if (0 <= state) {
         cvalue->state = state;
     }
 }
 
-bool isEmpty(CellValue cvalue) { return cvalue.type == VACUUM; }
+bool IsEmpty(Cell cvalue) { return cvalue.type == VACUUM; }
 
-bool isFluid(CellValue cvalue) { return cvalue.type == FLUID; }
+bool IsFluid(Cell cvalue) { return cvalue.type == FLUID; }
 
-int difference(CellValue left, CellValue right) { return left.state - right.state; }
+int Difference(Cell left, Cell right) { return left.state - right.state; }

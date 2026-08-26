@@ -31,24 +31,45 @@ typedef enum {
     STONE,
 } CMaterial;
 
-typedef struct CellValue {
+typedef enum {
+    MAT_STONE,
+} SolidMaterial;
+
+typedef struct CellOld {
     CType type;
     CMaterial material;
     int state;
+    double doubleState;
     OccupationNumber occ;
     bool settled;
-} CellValue;
+} CellOld;
 
-void initOccupationNumber(OccupationNumber *occ);
-void initCellValue(CellValue *cvalue, CType type, CMaterial material, int state);
-CellValue newCellValue(CType type, CMaterial material, int state);
-Color cellColor(CellValue cvalue);
-void drawCellValue(CellValue cvalue, int x, int y, int width, int height);
-void copyCellValue(const CellValue *source, CellValue *destination);
-void setCellState(CellValue *cvalue, int state);
+typedef struct Cell {
+    CType type;
+    CMaterial material;
+    double state;
+    bool settled;
 
-bool isEmpty(CellValue cvalue);
-bool isFluid(CellValue cvalue);
-int difference(CellValue left, CellValue right);
+    OccupationNumber occ;
+} Cell;
+
+// clang-format off
+#define IS_EMPTY(value) ((value).type == NONE)
+#define IS_SOLID(value) ((value).type == SOLID)
+#define IS_FLUID(value) ((value).type == FLUID)
+#define IS_GAS(value)   ((value).type == GAS)
+// clang-format on
+
+void InitOccupationNumber(OccupationNumber *occ);
+void InitCell(Cell *cvalue, CType type, CMaterial material, int state);
+Cell NewCell(CType type, CMaterial material, int state);
+Color CellColor(Cell cvalue);
+void DrawCell(Cell cvalue, int x, int y, int width, int height);
+void CopyCell(const Cell *source, Cell *destination);
+void SetCellState(Cell *cvalue, int state);
+
+bool IsEmpty(Cell cvalue);
+bool IsFluid(Cell cvalue);
+int Difference(Cell left, Cell right);
 
 #endif // ptest_value_h
